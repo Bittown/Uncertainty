@@ -1,0 +1,25 @@
+<div class="container">
+
+  <div class="jumbotron">
+    <%= render 'share/simple_search', url: admins_path %>
+  </div>
+
+  <div class="panel panel-default">
+    <div class="panel-heading">
+      <p class="panel-title pull-left"><%= t 'admin' %></p>
+      <% if current_admin&.root? %>
+        <%= link_to t('new'), new_admin_path, class: 'btn btn-primary pull-right' %>
+      <% end %>
+      <div class="clearfix"></div>
+    </div>
+
+    <div class="panel-body">
+      <%= will_paginate %>
+    </div>
+
+    <div class="list-group">
+      <%= render(@admins) || t('no_admins') %>
+    </div>
+  </div>
+</div>
+

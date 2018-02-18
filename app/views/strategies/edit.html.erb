@@ -1,0 +1,14 @@
+<div class="container">
+  <h2><%= t 'strategy' %> </h2>
+  <%= form_for(:strategy, url: strategies_path, method: :put, html: {class: 'form form-horizontal', role: 'form'}) do |f| %>
+    <% @strategies.each do |s| %>
+      <div class="form-group">
+      <%= f.label s.key, for: s.key, class: 'col-sm-2 form-control' %>
+      <%= f.text_area s.key, id: s.key, value: s.value, placeholder: s.describe, class: 'col-sm-10 form-control' %>
+      </div>
+    <% end %>
+    <div class="form-group">
+    <%= f.submit :submit, class: 'btn btn-primary btn-lg btn-block' %>
+    </div>
+  <% end %>
+</div>

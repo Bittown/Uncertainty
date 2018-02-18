@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>GuessingGame</title>
+  <%= csrf_meta_tags %>
+  <%= stylesheet_link_tag 'application', media: 'all', 'data-turbolinks-track': 'reload' %>
+  <%= javascript_include_tag 'easeljs.min', 'data-turbolinks-track': 'reload' %>
+  <%= javascript_include_tag 'preloadjs.min', 'data-turbolinks-track': 'reload' %>
+  <script>
+    var stage,
+        w,
+        h,
+        loader,
+        speed = 1,
+        monsterRun,
+        monsterIdle,
+        isComplete = false;
+
+    function init() {
+      stage = new createjs.Stage("demoCanvas");
+      w = stage.canvas.width;
+      h = stage.canvas.height;
+
+      var manifest = [
+        {src: "<%= asset_path('platformer/Sprites/MonsterA/Run.png') %>", id: "monsterRun"},
+        {src: "<%= asset_path('platformer/Sprites/MonsterA/Idle.png') %>", id: "monsterIdle"}];
+
+      loader = new createjs.LoadQueue(true);
+      loader.addEventListener("complete", handleComplete);
+      loader.addEventListener("error", handleError);
+      loader.loadManifest(manifest, true);
+    }
+
+    function handleComplete() {
+      var spriteSheet = new createjs.SpriteSheet({
+        images: [loader.getResult("monsterRun")],
+        frames: {width: 64, height: 64, regX: 32, regY: 0, spacing: 0, margin: 0},
+        animations: {walk: [0, 9, "run", speed]},
+        framerate: 18
+      });
+
+      var monsY = h - 64;
+
+      monsterRun = new createjs.Sprite(spriteSheet);
+      monsterRun.x = 16;
+      monsterRun.y = monsY;
+
+      spriteSheet = new createjs.SpriteSheet({
+        images: [loader.getResult("monsterIdle")],
+        frames: {width: 64, height: 64, regX: 32, regY: 0, spacing: 0, margin: 0},
+        animations: {idle: [0, 10, "idle", speed]},
+        framerate: 20
+      });
+      monsterIdle = new createjs.Sprite(spriteSheet);
+      monsterIdle.x = 16;
+      monsterIdle.y = monsY;
+
+      monsterIdle.gotoAndPlay("idle");
+      stage.addChild(monsterIdle);
+
+      createjs.Ticker.timingMode = createjs.Ticker.RAF;
+      createjs.Ticker.addEventListener("tick", tick);
+      createjs.Ticker.framerate = 60;
+      isComplete = true;
+    }
+
+    function handleError(e) {
+      console.log("Failed on image loading: " + e.message);
+    }
+
+    function startGame() {
+      if(!isComplete){
+        alert("Loading resources, please wait...");
+        return;
+      }
+      if (stage.contains(monsterIdle)) {
+        monsterRun.scaleX = -1;
+        monsterRun.x = 16;
+        monsterRun.gotoAndPlay("run");
+        monsterIdle.gotoAndStop("idle");
+        stage.removeChild(monsterIdle);
+        stage.addChild(monsterRun);
+        stage.update();
+      } else {
+        console.log("Is running");
+      }
+    }
+
+    function tick(event) {
+      if (!stage.contains(monsterIdle)) {
+        if (1 === monsterRun.scaleX) {
+          if (monsterRun.x < 16) {
+            monsterRun.gotoAndStop("run");
+            monsterIdle.gotoAndPlay("idle");
+            stage.removeChild(monsterRun);
+            stage.addChild(monsterIdle);
+          } else {
+            monsterRun.x -= 2;
+          }
+        } else {
+          if (monsterRun.x > w - 16) {
+            monsterRun.scaleX = 1;
+          } else {
+            monsterRun.x += 2;
+          }
+        }
+      }
+
+      stage.update(event);
+    }
+
+  </script>
+</head>
+
+<body onload="init();">
+
+<% if alert %>
+  <p class="alert alert-danger fade in"><%= alert %></p>
+<% elsif notice %>
+  <p class="alert alert-info fade in"><%= notice %></p>
+<% end %>
+
+<div class="container center">
+  <div class="row">
+    <h1>CreateJs demo</h1>
+  </div>
+  <div class="row">
+    <canvas id="demoCanvas" width="400" height="96"
+            style="background-color: #333333"></canvas>
+  </div>
+  <div class="row">
+    <button class="btn btn-info" onclick="startGame();">Run</button>
+  </div>
+</div>
+
+</body>
+</html>

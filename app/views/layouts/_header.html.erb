@@ -1,0 +1,58 @@
+<nav class="navbar navbar-static-top navbar-default">
+  <div class="container">
+    <div class="navbar-header">
+      <a class="navbar-brand" , href="/">
+        <strong>Guessing Game</strong>
+      </a>
+    </div>
+    <div>
+      <ul class="nav navbar-nav navbar-right">
+        <li><%= link_to t('home'), root_path %></li>
+
+        <% if current_station %>
+          <li><%= link_to t('game'), games_path %></li>
+          <li><%= link_to t('buy_ticket'), new_ticket_path %></li>
+          <li><%= link_to t('ticket'), tickets_path %></li>
+
+          <li class="dropdown">
+            <a class="dropdown-toggle" type="button" id="header_dropdown_1"
+               data-toggle="dropdown" aria-haspopup="true" aria-expanded="true" href="#">
+              <%= t('mine') %>
+            </a>
+            <ul class="dropdown-menu" aria-labelledby="header_dropdown_1">
+              <li><%= link_to t('my_profile'), current_station %></li>
+              <li role="separator" class="divider"></li>
+              <li><%= link_to t('logout'), logout_path, method: :delete %></li>
+            </ul>
+          </li>
+
+        <% elsif current_admin %>
+          <li><%= link_to t('game'), games_path %></li>
+          <li><%= link_to t('ticket'), tickets_path %></li>
+          <li><%= link_to t('station'), stations_path %></li>
+          <li><%= link_to t('user'), users_path %></li>
+          <li><%= link_to t('strategy'), strategies_path %></li>
+          <% if current_admin.root? %>
+            <li><%= link_to t('admin'), admins_path %></li>
+          <% end %>
+
+          <li class="dropdown">
+            <a class="dropdown-toggle" type="button" id="header_dropdown_2"
+               data-toggle="dropdown" aria-haspopup="true" aria-expanded="true" href="#">
+              <%= t('mine') %>
+            </a>
+            <ul class="dropdown-menu" aria-labelledby="header_dropdown_2">
+              <li><%= link_to t('my_profile'), current_admin %></li>
+              <li role="separator" class="divider"></li>
+              <li><%= link_to t('logout'), admin_logout_path, method: :delete %></li>
+            </ul>
+          </li>
+
+        <% else %>
+          <li><%= link_to t('login'), login_path %></li>
+        <% end %>
+
+      </ul>
+    </div>
+  </div>
+</nav>

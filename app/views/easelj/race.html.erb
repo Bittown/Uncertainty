@@ -1,0 +1,218 @@
+<script>
+  var stage, w, h, loader;
+  var sky, grant, groundImg, ground, hill1, hill2, txt;
+  var canvas,
+      isResizing = false,
+      initialized = false;
+  var status = 204, l_status, status_timer, status_update_freq = 1 << 13;
+
+  function init() {
+    canvas = document.getElementById("demo");
+
+    window.addEventListener('resize', resizeCanvas, false);
+    resizeCanvas();
+    initCreateJs();
+  }
+
+  function resizeCanvas() {
+    if (isResizing) {
+      return;
+    }
+    isResizing = true;
+
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    w = canvas.width;
+    h = canvas.height;
+
+    if (initialized) {
+      rePaint();
+    }
+
+    isResizing = false;
+  }
+
+  function initCreateJs() {
+    stage = new createjs.Stage("demo");
+
+    var manifest = [
+      {src: "<%= asset_path('run/spritesheet_grant.png') %>", id: "grant"},
+      {src: "<%= asset_path('run/sky.png') %>", id: "sky"},
+      {src: "<%= asset_path('run/ground.png') %>", id: "ground"},
+      {src: "<%= asset_path('run/hill1.png') %>", id: "hill1"},
+      {src: "<%= asset_path('run/hill2.png') %>", id: "hill2"}];
+
+    loader = new createjs.LoadQueue(true);
+    loader.addEventListener("error", handleError);
+    loader.addEventListener("complete", handleComplete);
+    loader.loadManifest(manifest, true);
+  }
+
+  function handleError(e) {
+    console.log("Error: " + e.message);
+  }
+
+  function handleComplete() {
+    sky = new createjs.Shape();
+
+    groundImg = loader.getResult("ground");
+    ground = new createjs.Shape();
+
+    hill1 = new createjs.Bitmap(loader.getResult("hill1"));
+    hill1.alpha = 0.5;
+
+    hill2 = new createjs.Bitmap(loader.getResult("hill2"));
+
+    var spriteSheet = new createjs.SpriteSheet({
+      framerate: 30,
+      images: [loader.getResult("grant")],
+      frames: {regX: 82, height: 292, count: 64, regY: 0, width: 165},
+      animations: {
+        "run": [8, 25, "run", 1.5],
+        "jump": [26, 63, "run"]
+      }
+    });
+    grant = new createjs.Sprite(spriteSheet, "run");
+    grant.visible = false;
+
+    txt = new createjs.Text("Hello World", "30px Arial", "#ff7700");
+
+    rePaint();
+
+    stage.addChild(sky, hill1, hill2, ground, grant, txt);
+    stage.addEventListener("stagemousedown", handleJumpStart);
+
+    createjs.Ticker.timingMode = createjs.Ticker.RAF;
+    createjs.Ticker.addEventListener("tick", tick);
+
+    initialized = true;
+    continueUpdateStatus();
+  }
+
+  function createXHR() {
+    if (typeof XMLHttpRequest != "undefined") {
+      return new XMLHttpRequest();
+    } else if (typeof ActiveXObject != "undefined") {
+      if (typeof arguments.callee.activeXString != "string") {
+        var versions = ["MSXML2.XMLHttp.6.0", "MSXML2.XMLHttp.3.0", "MSXML2.XMLHttp"],
+            i, len;
+
+        for (i = 0, len = versions.length; i < len; i++) {
+          try {
+            new ActiveXObject(versions[i]);
+            arguments.callee.activeXString = versions[i];
+            break;
+          } catch (ex) {
+          }
+        }
+        return new ActiveXObject(arguments.callee.activeXString);
+      } else {
+        throw new Error("No XHR object available.");
+      }
+    }
+  }
+
+  function hideGrant(msg) {
+    txt.text = msg;
+    grant.visible = false;
+    status_update_freq = 1 << 15;
+  }
+
+  function exposeGrant(msg) {
+    txt.text = msg;
+    grant.visible = true;
+  }
+
+  function updateStatus() {
+    <% if @game %>
+    var xhr = createXHR();
+    xhr.onreadystatechange = function () {
+      if (this.readyState === 4) {
+        status = this.status;
+        if (200 === status) {
+          // TODO update status parsing according to the new REST API
+          // l_status = JSON.parse(this.responseText);
+          // if (l_status.time_left <= 180) {
+          //   exposeGrant("Game <%= @game.id %> will expose in " + Math.floor(l_status.time_left) + " seconds.");
+          //   status_update_freq = 1;
+          // } else {
+          //   var time_to_show = l_status.time_left - 180;
+          //   hideGrant("Race will start in " + Math.floor(time_to_show) + " seconds.");
+          //   status_update_freq = time_to_show - 1;
+          // }
+        } else if (204 === status) {
+          hideGrant("Invalid game (id <%= @game.id %>), please refresh to reload.");
+        } else if (201 === status) {
+          hideGrant("Game <%= @game.id %> is exposed.");
+        } else if (208 === status) {
+          hideGrant("Game <%= @game.id %> should already be exposed.");
+        } else {
+          hideGrant("Error on connect to server, code: " + status);
+        }
+      }
+    };
+    xhr.open("get", "<%= status_game_path(@game) %>", true);
+    xhr.send(null);
+    <% else %>
+    hideGrant("Invalid game (id <%= @game.id %>), please refresh to reload.");
+    <% end %>
+  }
+
+  function continueUpdateStatus() {
+    updateStatus();
+    status_timer = setTimeout(continueUpdateStatus, status_update_freq);
+  }
+
+  function updateTxtPosition() {
+    if (txt instanceof createjs.Text) {
+      txt.x = w >> 3;
+      txt.y = h >> 3;
+    }
+  }
+
+  function rePaint() {
+    sky.graphics.beginBitmapFill(loader.getResult("sky")).drawRect(0, 0, w, h);
+    ground.graphics.beginBitmapFill(groundImg).drawRect(0, 0, w + groundImg.width, groundImg.height);
+    ground.tileW = groundImg.width;
+    ground.y = h - groundImg.height;
+    hill1.setTransform(Math.random() * w, h - (hill1.image.height << 2) - groundImg.height, 4, 4);
+    hill2.setTransform(Math.random() * w, h - hill2.image.height * 3 - groundImg.height, 3, 3);
+    grant.y = h - groundImg.height - 292;
+    updateTxtPosition();
+  }
+
+  function handleJumpStart() {
+    grant.gotoAndPlay("jump");
+  }
+
+  function tick(event) {
+    if (isResizing) {
+      return;
+    }
+
+    if (grant.visible) {
+      var deltaS = event.delta / 1000;
+      var position = grant.x + 150 * deltaS;
+
+      var grantW = grant.getBounds().width * grant.scaleX;
+      grant.x = (position >= w + grantW) ? -grantW : position;
+
+      ground.x = (ground.x - deltaS * 150) % ground.tileW;
+
+      hill1.x = (hill1.x - deltaS * 30);
+      if (hill1.x + hill1.image.width * hill1.scaleX <= 0) {
+        hill1.x = w;
+      }
+      hill2.x = (hill2.x - deltaS * 45);
+      if (hill2.x + hill2.image.width * hill2.scaleX <= 0) {
+        hill2.x = w;
+      }
+    }
+
+    stage.update(event);
+  }
+
+  window.onload = init;
+</script>
+
+

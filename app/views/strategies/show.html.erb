@@ -1,0 +1,14 @@
+<div class="container">
+  <div class="panel panel-default">
+    <div class="panel-heading">
+      <p class="panel-title pull-left"><%= t 'strategy' %></p>
+      <% if current_admin&.root? %>
+        <%= link_to t('edit'), edit_strategies_path, class: 'btn btn-primary pull-right' %>
+      <% end %>
+      <div class="clearfix"></div>
+    </div>
+    <div class="list-group">
+      <%= @strategies ? render(@strategies) : (t 'no_strategy') %>
+    </div>
+  </div>
+</div>

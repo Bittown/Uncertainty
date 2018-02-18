@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>GuessingGame</title>
+  <%= csrf_meta_tags %>
+  <%= stylesheet_link_tag 'application', media: 'all', 'data-turbolinks-track': 'reload' %>
+  <%= javascript_include_tag 'application', 'data-turbolinks-track': 'reload' %>
+  <%= javascript_include_tag 'easeljs.min', 'data-turbolinks-track': 'reload' %>
+  <script>
+    function playAnimation() {
+      var stage = new createjs.Stage("demoCanvas");
+      var circle = new createjs.Shape();
+      circle.graphics.beginFill("DeepSkyBlue").drawCircle(0, 0, 50);
+      circle.x = 100;
+      circle.y = 100;
+      stage.addChild(circle);
+
+      var mac = new createjs.Bitmap("<%= asset_path('mac_log.png') %>");
+      mac.x = 300;
+      mac.y = 100;
+      //mac.shadow = new createjs.Shadow("#000000", 5, 5, 10);
+      stage.addChild(mac);
+
+      var txt = new createjs.Text("Hello World", "20px Arial", "#ff7700");
+      txt.x = 500;
+      txt.y = 100;
+      stage.addChild(txt);
+
+      stage.update();
+    }
+  </script>
+</head>
+
+<body onload="playAnimation();">
+
+<% if alert %>
+  <p class="alert alert-danger fade in"><%= alert %></p>
+<% elsif notice %>
+  <p class="alert alert-info fade in"><%= notice %></p>
+<% end %>
+
+<div class="container">
+  <div class="row">
+    <h1>CreateJs demo</h1>
+  </div>
+  <div class="row">
+    <canvas id="demoCanvas" width="800" height="400"></canvas>
+  </div>
+</div>
+
+<img src=<%= asset_path('mac_log.png') %>/>
+
+</body>
+</html>

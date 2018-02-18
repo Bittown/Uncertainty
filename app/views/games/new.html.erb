@@ -1,0 +1,42 @@
+<div class="container">
+
+  <h2><%= t '.title' %></h2>
+
+  <%= form_with(module: @game, url: games_path, local: true, role: 'form', class: 'form-horizontal') do |form| %>
+    <% if @game.errors.any? %>
+      <div id="error_explanation">
+        <h2><%= pluralize(@game.errors.count, 'error') %></h2>
+
+        <ul>
+          <% @game.errors.full_messages.each do |message| %>
+            <li><%= message %></li>
+          <% end %>
+        </ul>
+      </div>
+    <% end %>
+
+    <div class="form-group">
+      <%= form.label t('activerecord.attributes.game.bg_style'), class: 'control-label' %>
+      <%= form.select :bg_style, Game.bg_styles, {include_blank: true}, class: 'form-control' %>
+    </div>
+    <div class="form-group">
+      <%= form.label t('activerecord.attributes.game.ground_style'), class: 'control-label' %>
+      <%= form.select :ground_style, Game.ground_styles, {include_blank: true}, class: 'form-control' %>
+    </div>
+
+    <div class="input-group input-group-lg">
+      <%= form.text_field :expose_date, id: 'game_expose_date',
+                          placeholder: t('date'), data: {provide: 'datepicker'},
+                          class: 'form-control' %>
+      <span class="input-group-addon">:</span>
+      <%= form.text_field :expose_hour, id: 'game_expose_hour',
+                          placeholder: "#{t 'hour'}(00:00)",
+                          vaule: 12, class: 'form-control' %>
+      <div class="input-group-btn">
+        <%= form.submit t('create'), class: 'btn btn-primary' %>
+      </div>
+    </div><!-- /input-group -->
+
+  <% end %>
+
+</div>

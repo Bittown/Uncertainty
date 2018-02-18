@@ -1,0 +1,105 @@
+<script>
+  var user_pin,
+      ticket_btn,
+      is_pin_sent = false;
+
+  function updateTicketBtn() {
+    if (is_pin_sent) {
+      ticket_btn.innerText = "<%= t 'pay' %>";
+      ticket_btn.type = "commit";
+      ticket_btn.onclick = null;
+    } else {
+      ticket_btn.innerText = "<%= t 'send_captcha' %>";
+      ticket_btn.type = "button";
+      ticket_btn.onclick = function () {
+        ajaxDo("get", " <%= "/users/#{@ticket.user_mobile}/refresh_pin" %> ", true);
+        is_pin_sent = true;
+      };
+    }
+  }
+
+  function initTicketForm() {
+    user_pin = document.getElementById("user_pin");
+    ticket_btn = document.getElementById("ticket_btn");
+
+    updateTicketBtn();
+    user_pin.oninput = updateTicketBtn;
+  }
+
+  document.addEventListener("turbolinks:load", initTicketForm);
+</script>
+
+<div class="container">
+
+  <div class="jumbotron">
+
+    <p>
+      <strong><%= t 'ticket' %></strong>
+      <%= @ticket.id %>
+    </p>
+
+    <% if @ticket.won? %>
+      <% if @ticket.paid? %>
+        <p><strong><%= t 'tickets.paid_already' %></strong></p>
+      <% else %>
+        <% if current_station %>
+          <%= bootstrap_form_for(@ticket, method: :put, url: pay_ticket_path(@ticket), remote: false) do |f| %>
+            <%= f.hidden_field :id, value: @ticket.id %>
+
+            <div class="input-group input-group-lg">
+              <%= number_field_tag 'user_pin', nil, class: 'form-control', placeholder: '验证码' %>
+              <div class="input-group-btn">
+                <button id="ticket_btn" class="btn btn-primary"></button>
+              </div>
+            </div><!-- /input-group -->
+          <% end %>
+        <% else %>
+          <p><strong><%= t 'tickets.need_to_be_paid' %></strong></p>
+        <% end %>
+      <% end %>
+    <% else %>
+      <% if @ticket.game.exposed? %>
+        <p><strong><%= t 'tickets.not_won' %></strong></p>
+      <% else %>
+        <p><strong><%= t 'tickets.not_exposed' %></strong></p>
+      <% end %>
+    <% end %>
+
+    <p>
+      <strong><%= t 'game' %>:</strong>
+      <%= link_to @ticket.game_id, @ticket.game %>,
+      <% if @ticket.game.exposed? %>
+        <strong><%= t 'exposed_at' %></strong>: <%= @ticket.game.exposed_at %>
+        <strong><%= t 'result' %></strong>: <%= @ticket.game.result %>
+      <% else %>
+        <strong><%= t 'should_expose_at' %></strong>: <%= @ticket.game.should_expose_at %>
+      <% end %>
+    </p>
+
+    <p>
+      <strong><%= t 'tickets.bought_at_station' %></strong>:
+      <%= link_to @ticket.station.name, @ticket.station %>
+    </p>
+
+    <p>
+      <strong><%= t 'tickets.bought_by_user' %></strong>:
+      <% if current_admin %>
+        <%= link_to @ticket.user.mobile, @ticket.user %>
+      <% else %>
+        <%= @ticket.user.mobile %>
+      <% end %>
+    </p>
+
+    <p>
+      <strong><%= t 'amount' %></strong>:
+      <%= @ticket.amount %>
+    </p>
+
+    <p>
+      <strong><%= t 'forecast' %></strong>:
+      <%= t result_as_str(@ticket.forecast) %>
+    </p>
+
+  </div>
+
+</div>

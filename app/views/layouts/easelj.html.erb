@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>GuessingGame</title>
+  <%= csrf_meta_tags %>
+  <%= stylesheet_link_tag 'application', media: 'all', 'data-turbolinks-track': 'reload' %>
+  <%= javascript_include_tag 'easeljs.min', 'data-turbolinks-track': 'reload' %>
+  <%= javascript_include_tag 'preloadjs.min', 'data-turbolinks-track': 'reload' %>
+
+  <style>
+    *{
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body{
+      /* to make sure they are full screen */
+      width: 100%;
+      height: 100%;
+    }
+
+    #demo{
+      /* to remove scrollbar */
+      display: block;
+    }
+
+    canvas{
+      background: #333333;
+    }
+  </style>
+
+  <%= yield %>
+
+</head>
+
+<body>
+
+<canvas id="demo"></canvas>
+
+</body>
+</html>

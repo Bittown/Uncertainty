@@ -1,0 +1,24 @@
+<div class="container">
+
+  <div class="jumbotron">
+    <%= render 'share/simple_search', url: stations_path %>
+  </div>
+
+  <div class="panel panel-default">
+    <div class="panel-heading">
+      <p class="panel-title pull-left"><%= t 'station' %></p>
+      <%= link_to t('new'),
+                  new_station_path,
+                  class: 'btn btn-primary pull-right' %>
+      <div class="clearfix"></div>
+    </div>
+
+    <div class="panel-body">
+      <%= will_paginate %>
+    </div>
+
+    <div class="list-group">
+      <%= render(@stations) || t('no_stations') %>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,34 @@
+<div class="container">
+
+  <div class="jumbotron">
+
+    <h2>
+      <%= t('user') %>: <%= @user.mobile %>
+    </h2>
+
+    <p>
+      <strong><%= t 'users.bought' %>:</strong>
+      <%= "#{@user.bought_small}/#{@user.bought_middle}/#{@user.bought_big}" %>
+      , <strong><%= t 'users.gained' %></strong>
+      <%= @user.gained %>
+      , <strong><%= t 'users.bought_tickets' %></strong>
+      <%= @user.tickets_count %>
+    </p>
+
+  </div>
+
+  <div class="panel panel-default">
+    <div class="panel-heading">
+      <p class="panel-title pull-left"><%= t 'users.bought_tickets' %></p>
+      <%= link_to t('more'),
+                  tickets_path(quest: @user.mobile),
+                  class: 'btn btn-primary pull-right' %>
+      <div class="clearfix"></div>
+    </div>
+
+    <div class="list-group">
+      <%= render(@user.tickets[0..9]) || t('no_tickets') %>
+    </div>
+  </div>
+
+</div>

@@ -1,0 +1,401 @@
+---
+cn:
+  activerecord:
+    errors:
+      messages:
+        record_invalid: "验证失败: %{errors}"
+        restrict_dependent_destroy:
+          has_one: 由于 %{record} 需要此记录，所以无法移除记录
+          has_many: 由于 %{record} 需要此记录，所以无法移除记录
+    models:
+      admin: '管理员'
+      game: '比赛'
+      station: '站点'
+      ticket: '票据'
+      user: '用户'
+    attributes:
+      admin:
+        mobile: '手机'
+        name: '名字'
+        password: '密码'
+        password_confirmation: '确认密码'
+        level: '级别'
+      game:
+        exposted_at: '揭晓于'
+        should_expose_at: '预计揭晓于'
+        tickets_count: '总票数'
+        result: '结果'
+        sold_small: '买小额'
+        sold_middle: '买平额'
+        sold_big: '买大额'
+        paid: '已兑现额'
+        should_pay: '需兑现额'
+        bg_style: '背景风格'
+        ground_style: '地面风格'
+        first_character_color: '第一个玩家的颜色'
+        second_character_color: '第二个玩家的颜色'
+        ret_unknown: '未知结果'
+        ret_small: '第一个玩家赢'
+        ret_middle: '平局'
+        ret_big: '第二个玩家赢'
+      station:
+        mobile: '手机'
+        name: '名字'
+        password: '密码'
+        password_confirmation: '确认密码'
+        active: '活动?'
+        sold_small: '买小额'
+        sold_middle: '买平额'
+        sold_big: '买大额'
+        paid: '已兑现额'
+        should_pay: '需兑现额'
+        tickets_count: '总票数'
+      ticket:
+        amount: '数量'
+        forecast: '结果估计'
+        paid: '已经支付?'
+        user_mobile: '用户手机'
+      user:
+        mobile: '手机'
+        bought_small: '买小额'
+        bought_middle: '买平额'
+        bought_big: '买大额'
+        gained: '已兑现额'
+        tickets_count: '总票数'
+      strategy:
+        key: '键'
+        value: '值'
+
+  date:
+    abbr_day_names:
+    - 周日
+    - 周一
+    - 周二
+    - 周三
+    - 周四
+    - 周五
+    - 周六
+    abbr_month_names:
+    -
+    - 1月
+    - 2月
+    - 3月
+    - 4月
+    - 5月
+    - 6月
+    - 7月
+    - 8月
+    - 9月
+    - 10月
+    - 11月
+    - 12月
+    day_names:
+    - 星期日
+    - 星期一
+    - 星期二
+    - 星期三
+    - 星期四
+    - 星期五
+    - 星期六
+    formats:
+      default: "%Y-%m-%d"
+      long: "%Y年%m月%d日"
+      short: "%m月%d日"
+    month_names:
+    -
+    - 一月
+    - 二月
+    - 三月
+    - 四月
+    - 五月
+    - 六月
+    - 七月
+    - 八月
+    - 九月
+    - 十月
+    - 十一月
+    - 十二月
+    order:
+    - :year
+    - :month
+    - :day
+  datetime:
+    distance_in_words:
+      about_x_hours:
+        one: 大约一小时
+        other: 大约 %{count} 小时
+      about_x_months:
+        one: 大约一个月
+        other: 大约 %{count} 个月
+      about_x_years:
+        one: 大约一年
+        other: 大约 %{count} 年
+      almost_x_years:
+        one: 接近一年
+        other: 接近 %{count} 年
+      half_a_minute: 半分钟
+      less_than_x_minutes:
+        one: 不到一分钟
+        other: 不到 %{count} 分钟
+      less_than_x_seconds:
+        one: 不到一秒
+        other: 不到 %{count} 秒
+      over_x_years:
+        one: 一年多
+        other: "%{count} 年多"
+      x_days:
+        one: 一天
+        other: "%{count} 天"
+      x_minutes:
+        one: 一分钟
+        other: "%{count} 分钟"
+      x_months:
+        one: 一个月
+        other: "%{count} 个月"
+      x_years:
+        one: 一年
+        other: "%{count} 年"
+      x_seconds:
+        one: 一秒
+        other: "%{count} 秒"
+    prompts:
+      day: 日
+      hour: 时
+      minute: 分
+      month: 月
+      second: 秒
+      year: 年
+  errors:
+    format: "%{attribute}%{message}"
+    messages:
+      accepted: 必须是可被接受的
+      blank: 不能为空字符
+      present: 必须是空白
+      confirmation: 与确认值不匹配
+      empty: 不能留空
+      equal_to: 必须等于 %{count}
+      even: 必须为双数
+      exclusion: 是保留关键字
+      greater_than: 必须大于 %{count}
+      greater_than_or_equal_to: 必须大于或等于 %{count}
+      inclusion: 不包含于列表中
+      invalid: 是无效的
+      less_than: 必须小于 %{count}
+      less_than_or_equal_to: 必须小于或等于 %{count}
+      model_invalid: "验证失败: %{errors}"
+      not_a_number: 不是数字
+      not_an_integer: 必须是整数
+      odd: 必须为单数
+      required: 必须存在
+      taken: 已经被使用
+      too_long:
+        one: 过长（最长为一个字符）
+        other: 过长（最长为 %{count} 个字符）
+      too_short:
+        one: 过短（最短为一个字符）
+        other: 过短（最短为 %{count} 个字符）
+      wrong_length:
+        one: 长度非法（必须为一个字符）
+        other: 长度非法（必须为 %{count} 个字符）
+      other_than: 长度非法（不可为 %{count} 个字符
+    template:
+      body: 如下字段出现错误：
+      header:
+        one: 有 1 个错误发生导致“%{model}”无法被保存。
+        other: 有 %{count} 个错误发生导致“%{model}”无法被保存。
+  helpers:
+    select:
+      prompt: 请选择
+    submit:
+      create: 新增%{model}
+      submit: 储存%{model}
+      update: 更新%{model}
+  number:
+    currency:
+      format:
+        delimiter: ","
+        format: "%u %n"
+        precision: 2
+        separator: "."
+        significant: false
+        strip_insignificant_zeros: false
+        unit: CN¥
+    format:
+      delimiter: ","
+      precision: 3
+      separator: "."
+      significant: false
+      strip_insignificant_zeros: false
+    human:
+      decimal_units:
+        format: "%n %u"
+        units:
+          billion: 十亿
+          million: 百万
+          quadrillion: 千兆
+          thousand: 千
+          trillion: 兆
+          unit: ''
+      format:
+        delimiter: ''
+        precision: 1
+        significant: false
+        strip_insignificant_zeros: false
+      storage_units:
+        format: "%n %u"
+        units:
+          byte:
+            one: Byte
+            other: Bytes
+          gb: GB
+          kb: KB
+          mb: MB
+          tb: TB
+    percentage:
+      format:
+        delimiter: ''
+        format: "%n%"
+    precision:
+      format:
+        delimiter: ''
+  support:
+    array:
+      last_word_connector: " 以及 "
+      two_words_connector: " 和 "
+      words_connector: "、"
+  time:
+    am: 上午
+    formats:
+      default: "%Y年%m月%d日 %A %H:%M:%S %Z"
+      long: "%Y年%m月%d日 %H:%M"
+      short: "%m月%d日 %H:%M"
+    pm: 下午
+  will_paginate:
+    next_label: "下一页"
+    page_entries_info:
+      multi_page: "正显示%{model}的第%{from}至第%{to}条记录(共%{count}条记录)"
+      multi_page_html: "正显示%{model}的第<b>%{from}</b>至第<b>%{to}</b>条记录(共<b>%{count}</b>条记录)"
+      single_page:
+        one: "正显示1条%{model}记录"
+        other: "正显示所有共%{count}条%{model}记录"
+        zero: "暂无%{model}记录"
+      single_page_html:
+        one: "正显示<b>1</b>条%{model}记录"
+        other: "正显示所有共<b>%{count}</b>条%{model}记录"
+        zero: "暂无%{model}记录"
+    page_gap: "…"
+    previous_label: "上一页"
+  users:
+    bought: '购买额(小/平/大)'
+    gained: '收益'
+    bought_tickets: '已购票据'
+  tickets:
+    should_pay: '需要支付吗?'
+    search_patern: 'user 用户电话, game 比赛期数, station 站点电话'
+    will_expose: '即将揭晓'
+    expose_time: '揭晓时间'
+    paid_already: '已经支付'
+    need_to_be_paid: '需要支付!'
+    not_won: '没有猜对'
+    not_exposed: '未揭晓'
+    bought_at_station: '购买站点'
+    bought_by_user: '购买用户'
+    new:
+      title: '竞猜比赛: '
+  stations:
+    edit:
+      title: '修改站点信息'
+    new:
+      title: '新建站点'
+  games:
+    frozen: '已冻结'
+    new:
+      title: '新建赛事'
+    show:
+      tickets_by_station: '站点售票'
+      expose_with_result: '揭晓为'
+  admins:
+    edit:
+      title: '修改管理员'
+    new:
+      title: '新建管理员'
+  sessions:
+    invalid_combination: '无效的帐号和密码组合'
+    disabled: '账户已禁用'
+  login: '登录'
+  logout: '退出'
+  home: '主页'
+  admin: '管理员'
+  game: '赛事'
+  ticket: '票据'
+  station: '站点'
+  user: '用户'
+  mine: '我的'
+  my_profile: '我的主页'
+  buy_ticket: '购票'
+  search: '搜索'
+  more: '更多'
+  small: '小'
+  middle: '平'
+  big: '大'
+  commit: '提交'
+  captcha: '验证码'
+  send_captcha: '发送验证码'
+  pay: '支付'
+  number: '号码'
+  result: '结果'
+  exposed_at: '揭晓于'
+  should_expose_at: '预计揭晓于'
+  amount: '数额'
+  forecast: '预测'
+  paid: '已兑现额'
+  should_pay: '需要兑现'
+  tickets_count: '总票数'
+  new: '新建'
+  edit: '编辑'
+  creator: '创建者'
+  exposer: '揭晓者'
+  sold: '销售额(小赢/平/大赢)'
+  date: '日期'
+  create: '创建'
+  hour: '时辰'
+  total: '总计'
+  copyright: '2017 HI2, 保留所有权利'
+  level: '级别'
+  invalid_pin: '验证失败'
+  creating_success: '创建成功'
+  creating_failed: '创建失败'
+  updating_success: '更新成功'
+  updating_failed: '更新失败'
+  exposing_success: '揭晓成功'
+  exposing_failed: '揭晓失败'
+  paying_success: '支付成功'
+  paying_failed: '支付失败'
+  no_privilege: '没有权限'
+  send_captcha_to_continue: '发送验证码以继续操作'
+  no_tickets: '没有票据'
+  no_stations: '没有站点'
+  no_users: '没有用户'
+  no_admins: '没有管理员'
+  no_games: '没有赛事'
+  mobile: '手机'
+  name: '名字'
+  password: '密码'
+  password: '密码'
+  password_confirmation: '确认密码'
+  frozen: '已冻结'
+  no_more_than_one_unexposed_at_a_time: '同一时刻只允许一个未结束的比赛'
+  current: '当前'
+  expose_time_should_be_latter: '揭晓时间必须晚于当前时间'
+  strategy: '策略'
+  no_strategy: '无策略'
+  blue: '小蓝'
+  pink: '小红'
+  beige: '小米'
+  yellow: '小黄'
+  green: '小青'
+  win: '获胜'
+  equal: '平'
+  unknown: '未知'
+  hurry: '提前开赛'
+

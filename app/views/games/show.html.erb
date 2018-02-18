@@ -1,0 +1,133 @@
+<script>
+  var admin_pin,
+      game_btn,
+      is_pin_sent = false;
+
+  function updateTicketBtn() {
+    <% if current_admin %>
+    if (is_pin_sent) {
+      game_btn.innerText = "<%= "#{t '.expose_with_result'} #{t Game.ret_str(@game.best_result)}" %>";
+      game_btn.type = "commit";
+      game_btn.onclick = null;
+    } else {
+      game_btn.innerText = "<%= t 'send_captcha_to_continue' %>";
+      game_btn.type = "button";
+      game_btn.onclick = function () {
+        ajaxDo("get", " <%= "/admins/#{current_admin.id}/refresh_pin" %> ", true);
+        is_pin_sent = true;
+      };
+    }
+    <% end %>
+  }
+
+  function initTicketForm() {
+    admin_pin = document.getElementById("admin_pin");
+    game_btn = document.getElementById("game_btn");
+
+    updateTicketBtn();
+    admin_pin.oninput = updateTicketBtn;
+  }
+
+  document.addEventListener("turbolinks:load", initTicketForm);
+</script>
+
+<div class="container">
+
+  <div class="jumbotron">
+    <h3 class="center"><%= "#{t 'game'} #{@game.id}" %></h3>
+
+    <% if Time.zone.now + 4.minutes < @game.should_expose_at %>
+      <a class="btn btn-primary btn-lg pull-right" href="<%= hurry_game_path(@game) %>">
+        <%= t 'hurry' %>
+      </a>
+    <% end %>
+
+    <p>
+      <% if @game.exposed? %>
+        <strong><%= t 'exposed_at' %></strong>:
+        <%= l(@game.exposed_at) %>
+        <p>
+          <strong><%= t 'result' %></strong>:
+          <%= t game_ret_as_str(@game) %>
+        </p>
+      <% else %>
+        <% if @game.can_expose? %>
+          <strong><%= t 'games.frozen' %></strong>
+          <% if current_admin&.root? %>
+            <%= t result_as_str(@game.best_result) %>
+          <% end %>
+        <% else %>
+          <p>
+            <strong><%= t 'should_expose_at' %></strong>
+            <%= l(@game.should_expose_at) %>
+          </p>
+        <% end %>
+      <% end %>
+      </p>
+
+
+      <% if current_admin %>
+        <p>
+          <strong><%= t 'creator' %></strong>:
+          <%= link_to @game.created_by, admin_path(@game.creator) %>
+        </p>
+
+        <p>
+          <strong><%= t 'sold' %></strong>:
+          <%= "#{@game.sold_small}/#{@game.sold_middle}/#{@game.sold_big}" %>
+        </p>
+
+        <p>
+          <strong><%= t 'paid' %></strong>:
+          <%= @game.paid %>
+        </p>
+
+        <p>
+          <strong><%= t 'should_pay' %></strong>:
+          <%= @game.should_pay %>
+        </p>
+      <% end %>
+
+      </div>
+
+  <% @stations.each do |station_mobile, tickets| %>
+    <div class="panel panel-default">
+      <div class="panel-heading">
+        <p class="panel-title pull-left"><%= "#{t '.tickets_by_station'} #{station_mobile}" %></p>
+        <%= link_to t('more'),
+                    tickets_path(quest: "game #{@game.id}, station #{station_mobile}"),
+                    class: 'btn btn-primary pull-right' %>
+        <div class="clearfix"></div>
+      </div>
+
+      <div class="panel-body">
+        <strong><%= t 'sold' %></strong>:
+        <% ret = count_sold_tickets tickets %>
+        <%= "#{ret[:small]}/#{ret[:middle]}/#{ret[:big]}" %>
+      </div>
+
+      <div class="list-group">
+        <%= render(tickets[0..5]) || t('no_tickets') %>
+      </div>
+    </div>
+
+  <% end %>
+
+  <% if current_admin %>
+    <div class="panel panel-default">
+      <div class="panel-heading">
+        <p class="panel-title pull-left"><%= t 'ticket' %></p>
+        <%= link_to t('more'),
+                    tickets_path(quest: "game #{@game.id}"),
+                    class: 'btn btn-primary pull-right' %>
+        <div class="clearfix"></div>
+      </div>
+
+      <div class="list-group">
+        <%= render(@game.tickets[0..9]) || t('no_tickets') %>
+      </div>
+    </div>
+  <% end %>
+
+</div>
+

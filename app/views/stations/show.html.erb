@@ -1,0 +1,55 @@
+<div class="container">
+
+  <div class="jumbotron">
+
+    <a class="btn btn-primary btn-lg pull-right" href="<%= edit_station_path %>">
+      <span class="glyphicon glyphicon-cog"></span>
+    </a>
+
+    <p>
+      <strong><%= t 'station' %></strong>:
+      <%= @station.name %>
+    </p>
+
+    <p>
+      <strong><%= t 'mobile' %></strong>:
+      <%= @station.mobile %>
+    </p>
+
+    <p>
+      <strong><%= t 'sold' %></strong>:
+      <%= "#{@station.sold_small}/#{@station.sold_middle}/#{@station.sold_big}" %>
+    </p>
+
+    <p>
+      <strong><%= t 'paid' %></strong>:
+      <%= @station.paid %>
+    </p>
+
+    <p>
+      <strong><%= t 'should_pay' %></strong>:
+      <%= @station.should_pay %>
+    </p>
+
+    <p>
+      <strong><%= t 'tickets_count' %></strong>:
+      <%= @station.tickets_count %>
+    </p>
+
+  </div>
+
+  <div class="panel panel-default">
+    <div class="panel-heading">
+      <p class="panel-title pull-left"><%= t 'ticket' %></p>
+      <%= link_to t('more'),
+                  tickets_path(quest: "station #{@station.mobile}"),
+                  class: 'btn btn-primary pull-right' %>
+      <div class="clearfix"></div>
+    </div>
+
+    <div class="list-group">
+      <%= render(@station.tickets[0..9]) || t('no_tickets') %>
+    </div>
+  </div>
+
+</div>

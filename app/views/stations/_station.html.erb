@@ -1,0 +1,9 @@
+<li class="list-group-item">
+  <%= link_to "#{station.name},
+  #{t 'mobile'} #{station.mobile},
+  #{t 'sold'} #{station.sold_small}/#{station.sold_middle}/#{station.sold_big},
+  #{t 'paid'} #{station.paid},
+  #{t 'should_pay'} #{station.should_pay},
+  #{t 'tickets_count'} #{station.tickets_count}",
+              station %>
+</li>

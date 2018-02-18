@@ -1,0 +1,9 @@
+<li class="list-group-item">
+<%= link_to "#{t 'game'} #{ticket.game_id},
+        #{t 'station'} #{ticket.station.name}(#{ticket.station.mobile}),
+        #{t 'user'} #{ticket.user_mobile},
+        #{t 'amount'} #{ticket.amount},
+        #{t 'forecast'} #{t result_as_str(ticket.forecast)},
+        #{t 'tickets.should_pay'} #{ticket.should_pay?}",
+            ticket %>
+</li>

@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>GuessingGame</title>
+  <%= csrf_meta_tags %>
+  <%= stylesheet_link_tag 'application', media: 'all', 'data-turbolinks-track': 'reload' %>
+  <%= javascript_include_tag 'easeljs.min', 'data-turbolinks-track': 'reload' %>
+  <%= javascript_include_tag 'preloadjs.min', 'data-turbolinks-track': 'reload' %>
+  <script>
+    var speed = 0.25;
+
+    // Monster
+    (function () {
+      function Monster(monsterName, imageRun, imageIdle, screenWidth) {
+        this.initialize(monsterName, imageRun, imageIdle, screenWidth);
+      }
+
+      Monster.prototype = new createjs.Sprite();
+
+      // public properties
+      Monster.prototype.WAIT_TIME_MAX = 80;
+      Monster.prototype.bounds = 0; // visual radial size
+      Monster.prototype.hit = 0; // average radial disparity
+      Monster.prototype.VILOCITY_X = 1;
+      Monster.prototype.VILOCITY_Y = 4;
+
+      // constructor
+      Monster.prototype.Sprite_initialize = Monster.prototype.initialize;
+
+      var quarterFrameSize;
+
+      Monster.prototype.initialize = function (monsterName, imageRun, imageIdle, screenWidth) {
+        var spriteSheet = new createjs.SpriteSheet({
+          images: [imageRun, imageIdle],
+          frames: {width: 64, height: 64, regX: 32, regY: 0},
+          animations: {
+            run: [0, 9, "run", speed],
+            idle: [10, 20, "idle", speed]
+          }});
+
+        this.Sprite_initialize(spriteSheet);
+        this.screenWidth = screenWidth;
+
+        // variable members to handle the idle state
+        // and the time to wait before walking again
+        this.waitTime = Monster.prototype.WAIT_TIME_MAX * Math.random();
+
+        quarterFrameSize = this.spriteSheet.getFrame(0).rect.width >> 2;
+
+        this.name = monsterName;
+
+        // velocity
+        this.vX = 0;
+
+        this.scaleX = -1;
+        this.gotoAndPlay("idle");
+      }
+
+      Monster.prototype.goRunLeft = function(){
+        this.scaleX = 1;
+
+        if(this.currentAnimation === "run"){
+          return;
+        }
+        this.gotoAndPlay("run");
+        this.vX = Monster.prototype.VILOCITY_X;
+      }
+
+      Monster.prototype.goRunRight = function() {
+        this.scaleX = -1;
+
+        if(this.currentAnimation === "run"){
+          return;
+        }
+        this.gotoAndPlay("run");
+        this.vX = Monster.prototype.VILOCITY_X;
+      }
+
+      Monster.prototype.goIdle = function() {
+        if(this.currentAnimation === "idle"){
+          return;
+        }
+        this.gotoAndPlay("idle");
+        this.waitTime = this.WAIT_TIME_MAX * Math.random();
+        this.vX = 0;
+      }
+
+      Monster.prototype.tick = function () {
+        if (this.currentAnimation === "idle") {
+          this.waitTime -= 1;
+
+          if (this.waitTime <= 0) {
+            if (this.x >= this.screenWidth - (quarterFrameSize + 1)) {
+              this.goRunLeft();
+            } else if (this.x <= quarterFrameSize) {
+              this.goRunRight();
+            }
+          }
+        } else {
+          this.x += -(this.vX * this.scaleX);
+          if(this.scaleX === -1){
+            if (this.x > this.screenWidth - (quarterFrameSize + 1)){
+              this.goIdle();
+            }
+          }else{
+            if (this.x < (quarterFrameSize + 1)) {
+              this.goIdle();
+            }
+          }
+        }
+      }
+
+      Monster.prototype.hitPoint = function (tX, tY) {
+        return this.hitRadius(tX, tY, 0);
+      }
+
+      Monster.prototype.hitRadius = function (tX, tY, tHit) {
+        if (tX - tHit > this.x + this.hit) {
+          return;
+        }
+        if (tX + tHit > this.x - this.hit) {
+          return;
+        }
+        if (tY - tHit > this.y + this.hit) {
+          return;
+        }
+        if (tY + tHit > this.y - this.hit) {
+          return;
+        }
+
+        return this.hit + tHit > Math.sqrt(Math.pow(Math.abs(this.x - tX), 2)
+            + Math.pow(Math.abs(this.y - tY), 2));
+      }
+
+      window.Monster = Monster;
+    }());
+
+    // Player
+
+    (function () {
+      function Player(imgIdle, imgRun, imgDie, imgJump, imgCelebrate, screenWidth) {
+        this.initialize(imgIdle, imgRun, imgDie, imgJump, imgCelebrate, screenWidth);
+      }
+
+      Player.prototype = new createjs.Sprite();
+
+      // public properties
+      Player.prototype.bound = 0;
+      Player.prototype.hit = 0;
+      Player.prototype.isAlive = true;
+      Player.prototype.VILOCITY_X = 4;
+      Player.prototype.VILOCITY_Y = 4;
+
+      // constructor
+      Player.prototype.Sprite_initialize = Player.prototype.initialize;
+
+      var quarterFrameSize;
+
+      Player.prototype.initialize = function (imgIdle, imgRun, imgDie, imgJump, imgCelebrate, screenWidth) {
+        var spriteSheet = new createjs.SpriteSheet({
+          images: [imgIdle, imgRun, imgDie, imgJump, imgCelebrate],
+          frames: {width: 64, height: 64, regX: 32, regY: 0},
+          animations: {
+            idle: [0, 0, "idle"],
+            run: [1, 10, "run", speed],
+            die: [11, 22, false, speed],
+            jump: [23, 33, "run", speed],
+            celebrate: [34, 44, "idle", speed]
+          }});
+
+        this.Sprite_initialize(spriteSheet);
+        this.isIdle = true;
+
+        this.screenWidth = screenWidth;
+        quarterFrameSize = this.spriteSheet.getFrame(0).rect.width >> 2;
+
+        this.vY = 0;
+        this.bounds = 20;
+        this.hit = this.bounds;
+
+        this.gotoAndPlay("idle");
+      }
+
+      Player.prototype.runLeft = function(){
+        if(!this.isAlive){
+          return;
+        }
+
+        this.scaleX = 1;
+
+        if(this.currentAnimation === "run"){
+          return;
+        }
+        this.gotoAndPlay("run");
+        this.isIdle = false;
+      }
+
+      Player.prototype.runRight = function(){
+        if(!this.isAlive){
+          return;
+        }
+
+        this.scaleX = -1;
+
+        if(this.currentAnimation === "run"){
+          return;
+        }
+        this.gotoAndPlay("run");
+        this.isIdle = false;
+      }
+
+      Player.prototype.goCelebrate = function() {
+        if(!this.isAlive){
+          return;
+        }
+
+        if(this.currentAnimation === "celebrate"){
+          return;
+        }
+        this.gotoAndPlay("celebrate");
+      }
+
+      Player.prototype.goJump = function(){
+        if(!this.isAlive){
+          return;
+        }
+
+        if(this.currentAnimation === "jump"){
+          return;
+        }
+        this.gotoAndPlay("jump");
+      }
+
+      Player.prototype.goIdle = function(){
+        if(!this.isAlive){
+          return;
+        }
+
+        if(this.currentAnimation === "idle"){
+          return;
+        }
+        this.gotoAndPlay("idle");
+        this.isIdle = true;
+      }
+
+      Player.prototype.goDie = function(){
+        if(!this.isAlive){
+          return;
+        }
+
+        this.isAlive = false;
+        this.gotoAndPlay("die");
+      }
+
+      Player.prototype.tick = function () {
+        if (!this.isAlive){
+          return;
+        }
+        if(this.isIdle){
+          if(this.currentAnimation === "run"){
+            this.goIdle();
+          }
+        }else{
+          var next_x = this.x - Player.prototype.VILOCITY_X * this.scaleX;
+          if (next_x >= this.screenWidth - (quarterFrameSize + 1)
+              || next_x <= quarterFrameSize) {
+            return;
+          }
+          this.x = next_x;
+        }
+      }
+
+      window.Player = Player;
+    }());
+
+
+    // Control
+    var KEYCODE_SPACE = 32,
+        KEYCODE_UP = 38,
+        KEYCODE_LEFT = 37,
+        KEYCODE_RIGHT = 39;
+
+    var canvas,
+        stage,
+        w, h, groundY,
+        bmpSeq,
+        bgSeqTile1, bgSeqTile2, bgSeqTile3,
+        monsters = [],
+        hero,
+        loader,
+        isComplete = false;
+
+    function init(){
+      stage = new createjs.Stage("demoCanvas");
+      w = stage.canvas.width;
+      h = stage.canvas.height;
+
+      var manifest = [
+        {src: "<%= asset_path('platformer/Sprites/MonsterA/Run.png') %>", id: "monsARun"},
+        {src: "<%= asset_path('platformer/Sprites/MonsterA/Idle.png') %>", id: "monsAIdle"},
+        {src: "<%= asset_path('platformer/Sprites/MonsterB/Run.png') %>", id: "monsBRun"},
+        {src: "<%= asset_path('platformer/Sprites/MonsterB/Idle.png') %>", id: "monsBIdle"},
+        {src: "<%= asset_path('platformer/Sprites/MonsterC/Run.png') %>", id: "monsCRun"},
+        {src: "<%= asset_path('platformer/Sprites/MonsterC/Idle.png') %>", id: "monsCIdle"},
+        {src: "<%= asset_path('platformer/Sprites/MonsterD/Run.png') %>", id: "monsDRun"},
+        {src: "<%= asset_path('platformer/Sprites/MonsterD/Idle.png') %>", id: "monsDIdle"},
+        {src: "<%= asset_path('platformer/Sprites/Gem.png') %>", id: "gem"},
+        {src: "<%= asset_path('platformer/Sprites/Player/Celebrate.png') %>", id: "playerCelebrate"},
+        {src: "<%= asset_path('platformer/Sprites/Player/Die.png') %>", id: "playerDie"},
+        {src: "<%= asset_path('platformer/Sprites/Player/Idle.png') %>", id: "playerIdle"},
+        {src: "<%= asset_path('platformer/Sprites/Player/Jump.png') %>", id: "playerJump"},
+        {src: "<%= asset_path('platformer/Sprites/Player/Run.png') %>", id: "playerRun"},
+        {src: "<%= asset_path('platformer/Tiles/BlockA0.png') %>", id: "blockA0"},
+        {src: "<%= asset_path('platformer/Tiles/BlockA1.png') %>", id: "blockA1"},
+        {src: "<%= asset_path('platformer/Tiles/BlockA2.png') %>", id: "blockA2"},
+        {src: "<%= asset_path('platformer/Tiles/BlockA3.png') %>", id: "blockA3"},
+        {src: "<%= asset_path('platformer/Tiles/BlockA4.png') %>", id: "blockA4"},
+        {src: "<%= asset_path('platformer/Tiles/BlockA5.png') %>", id: "blockA5"},
+        {src: "<%= asset_path('platformer/Tiles/BlockA6.png') %>", id: "blockA6"},
+        {src: "<%= asset_path('platformer/Tiles/BlockB0.png') %>", id: "blockB0"},
+        {src: "<%= asset_path('platformer/Tiles/BlockB1.png') %>", id: "blockB1"},
+        {src: "<%= asset_path('platformer/Tiles/Exit.png') %>", id: "exit"},
+        {src: "<%= asset_path('platformer/Tiles/Platform.png') %>", id: "platform"},
+        {src: "<%= asset_path('platformer/Backgrounds/Layer0_0.png') %>", id: "layer0_0"},
+        {src: "<%= asset_path('platformer/Backgrounds/Layer0_1.png') %>", id: "layer0_1"},
+        {src: "<%= asset_path('platformer/Backgrounds/Layer0_2.png') %>", id: "layer0_2"},
+        {src: "<%= asset_path('platformer/Backgrounds/Layer1_0.png') %>", id: "layer1_0"},
+        {src: "<%= asset_path('platformer/Backgrounds/Layer1_1.png') %>", id: "layer1_1"},
+        {src: "<%= asset_path('platformer/Backgrounds/Layer1_2.png') %>", id: "layer1_2"},
+        {src: "<%= asset_path('platformer/Backgrounds/Layer2_0.png') %>", id: "layer2_0"},
+        {src: "<%= asset_path('platformer/Backgrounds/Layer2_1.png') %>", id: "layer2_1"},
+        {src: "<%= asset_path('platformer/Backgrounds/Layer2_2.png') %>", id: "layer2_2"}
+      ];
+
+      loader = new createjs.LoadQueue(true);
+      loader.addEventListener("error", handleError);
+      loader.addEventListener("complete", handleComplete);
+      loader.loadManifest(manifest, true);
+    }
+
+    function handleComplete(){
+      BuildBackground();
+      BuildMonsters();
+
+      hero = new Player(loader.getResult("playerIdle"),
+          loader.getResult("playerRun"),
+          loader.getResult("playerDie"),
+          loader.getResult("playerJump"),
+          loader.getResult("playerCelebrate"),
+          w);
+      hero.x = 16;
+      hero.y = groundY - 64;
+      stage.addChild(hero);
+
+      isComplete = true;
+      createjs.Ticker.timingMode = createjs.Ticker.RAF;
+      createjs.Ticker.addEventListener("tick", tick);
+
+      document.onkeydown = handleKeyDown;
+      document.onkeyup = handleKeyUp;
+    }
+
+    function BuildBackground(){
+      var bg = new createjs.Shape();
+      var layer = loader.getResult("layer0_" + ((Math.random() > 0.5) ? "1" : "0"));
+      bg.graphics.beginBitmapFill(layer).drawRect(0, 0, w, h);
+      layer = loader.getResult("layer1_" + ((Math.random() > 0.5) ? "1" : "0"));
+      bg.graphics.beginBitmapFill(layer).drawRect(0, 0, w, h);
+      layer = loader.getResult("layer2_" + ((Math.random() > 0.5) ? "1" : "0"));
+      bg.graphics.beginBitmapFill(layer).drawRect(0, 0, w, h);
+
+      var tile = loader.getResult("blockA0");
+      groundY = h - tile.height,
+      bg.graphics.beginBitmapFill(tile).drawRect(0, groundY, w + tile.width, tile.height);
+      stage.addChild(bg);
+      // TODO
+    }
+
+    function BuildMonsters(){
+      var monster = new Monster("mA", loader.getResult("monsARun"), loader.getResult("monsAIdle"), w);
+      monster.x = 16;
+      monster.y = 0;
+      stage.addChild(monster);
+      monsters.push(monster);
+      monster = new Monster("mB", loader.getResult("monsBRun"), loader.getResult("monsBIdle"), w);
+      monster.x = 16;
+      monster.y = 100;
+      stage.addChild(monster);
+      monsters.push(monster);
+      monster = new Monster("mC", loader.getResult("monsCRun"), loader.getResult("monsCIdle"), w);
+      monster.x = 16;
+      monster.y = 200;
+      stage.addChild(monster);
+      monsters.push(monster);
+      monster = new Monster("mD", loader.getResult("monsDRun"), loader.getResult("monsDIdle"), w);
+      monster.x = 16;
+      monster.y = 300;
+      stage.addChild(monster);
+      monsters.push(monster);
+    }
+
+    function handleError(e){
+      console.log("Error loading images: " + e.message)
+    }
+
+    function tick(){
+      monsters.forEach(function(element){
+        element.tick();});
+      hero.tick();
+      stage.update();
+    }
+
+    function handleKeyDown(e){
+      if(!e){
+        var e = window.event;
+      }
+      switch(e.keyCode){
+        case KEYCODE_LEFT:
+          hero.runLeft();
+          break;
+        case KEYCODE_RIGHT:
+          hero.runRight();
+          break;
+        case KEYCODE_UP:
+          hero.goCelebrate();
+          break;
+        case KEYCODE_SPACE:
+          hero.goJump();
+          break;
+      }
+    }
+
+    function handleKeyUp(e){
+      if(!e){
+        var e = window.event;
+      }
+      switch(e.keyCode){
+        case KEYCODE_LEFT:
+        case KEYCODE_RIGHT:
+          hero.goIdle();
+          break;
+        default:
+          break;
+      }
+    }
+
+  </script>
+</head>
+
+<body onload="init();">
+
+<% if alert %>
+  <p class="alert alert-danger fade in"><%= alert %></p>
+<% elsif notice %>
+  <p class="alert alert-info fade in"><%= notice %></p>
+<% end %>
+
+<div class="container center">
+  <div class="row">
+    <h1>CreateJs demo</h1>
+  </div>
+  <div class="row">
+    <canvas id="demoCanvas" width="720" height="480"
+            style="background-color: #333333"></canvas>
+  </div>
+</div>
+
+</body>
+</html>

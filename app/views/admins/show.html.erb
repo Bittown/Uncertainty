@@ -1,0 +1,26 @@
+<div class="container">
+
+  <div class="jumbotron">
+
+    <a class="btn btn-primary btn-lg pull-right" href="<%= edit_admin_path %>">
+      <span class="glyphicon glyphicon-cog"></span>
+    </a>
+
+    <p>
+      <strong><%= t 'name' %></strong>:
+      <%= @admin.name %>
+    </p>
+
+    <p>
+      <strong><%= t 'mobile' %></strong>:
+      <%= @admin.mobile %>
+    </p>
+
+    <p>
+      <strong><%= t 'level' %></strong>:
+      <%= @admin.level %>
+    </p>
+  </div>
+
+</div>
+

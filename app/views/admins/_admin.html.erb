@@ -1,0 +1,5 @@
+<% unless admin.root? %>
+  <li class="list-group-item">
+      <%= link_to "#{t 'name'} #{admin.name}, #{t 'mobile'} #{admin.mobile}", admin %>
+  </li>
+<% end %>

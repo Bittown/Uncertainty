@@ -1,0 +1,133 @@
+<% game = Game.unexposed[0] %>
+
+<% if game %>
+  <script>
+    var amount,
+        forecast,
+        game_id,
+        user_mobile,
+        user_pin,
+        pin_btn,
+        progress_div,
+        progress_pan,
+        progress_timer,
+        is_pin_sent = false;
+
+    var game_expose_at = Date.parse("<%= game.should_expose_at.to_formatted_s(:iso8601) %>");
+    var game_sustain = game_expose_at - Date.parse("<%= game.created_at.to_formatted_s(:iso8601) %>");
+
+    function updateTicketBtn() {
+      pin_btn.innerText = is_pin_sent ?
+          "<%= t 'commit' %>" : "<%= t 'send_captcha' %>";
+      pin_btn.disabled = amount.value === "" ||
+          forecast.value === "" ||
+          game_id.value === "" ||
+          user_mobile.value === "";
+      if (pin_btn.disabled) {
+        return;
+      }
+
+      if (is_pin_sent) {
+        if (user_pin.value === "") {
+          pin_btn.disabled = true;
+          return;
+        }
+        pin_btn.type = "commit";
+        pin_btn.onclick = null;
+      } else {
+        pin_btn.type = "button";
+        pin_btn.onclick = function () {
+          ajaxDo("get", "/users/" + user_mobile.value + "/refresh_pin", true);
+          is_pin_sent = true;
+        };
+      }
+    }
+
+    function updateGameProgress() {
+      var remain = game_expose_at - Date.now();
+      if (remain <= 0) {
+        progress_div.style = "width: 100%";
+        progress_pan.textContent = "<%= t 'frozen' %>";
+        clearTimeout(progress_timer);
+        amount.disabled = true;
+        forecast.disabled = true;
+        user_mobile.disabled = true;
+        user_pin.disabled = true;
+        pin_btn.disabled = true;
+      } else {
+        var ratio = Math.round(remain * 100 / game_sustain);
+        progress_div.style = "width: " + ratio + "%";
+        progress_pan.textContent = "<%= t 'tickets.expose_time' %>";
+      }
+    }
+
+    function continueUpdateGameProgress() {
+      updateGameProgress();
+      progress_timer = setTimeout(continueUpdateGameProgress, 1 << 20)
+    }
+
+    function initTicketForm() {
+      amount = document.getElementById("ticket_amount");
+      forecast = document.getElementById("ticket_forecast");
+      game_id = document.getElementById("ticket_game_id");
+      user_mobile = document.getElementById("ticket_user_mobile");
+      user_pin = document.getElementById("user_pin");
+      pin_btn = document.getElementById("pin_btn");
+      progress_div = document.getElementById("game_progress_div");
+      progress_pan = document.getElementById("game_progress_pan");
+      user_pin.value = "";
+
+      user_mobile.oninput = function () {
+        user_pin.value = "";
+        updateTicketBtn();
+      };
+      user_pin.oninput = updateTicketBtn;
+
+      updateTicketBtn();
+      continueUpdateGameProgress();
+      amount.focus();
+    }
+
+    document.addEventListener("turbolinks:load", initTicketForm);
+  </script>
+
+<% end %>
+
+<div class="container">
+
+  <% if game %>
+    <h2><%= "#{t '.title'} #{game.id}" %></h2>
+
+    <%= bootstrap_form_for(@ticket, remote: false) do |form| %>
+      <%= render 'share/errors', object: @ticket %>
+      <div class="form-group">
+        <div class="progress">
+          <div id="game_progress_div" class="progress-bar progress-bar-info" role="progressbar">
+            <pan id="game_progress_pan"></pan>
+          </div>
+        </div>
+      </div>
+      <%= form.hidden_field :station_id, value: current_station.id %>
+      <%= form.hidden_field :game_id, value: game.id, readonly: true %>
+      <%= form.number_field :amount, min: 1, max: 9999, placeholder: '1..9999' %>
+      <%= form.select :forecast, [[t(Game::DEFAULT_FIRST_CHARACTER_COLOR), Game::RET_SMALL],
+                                  [t(Game::DEFAULT_SECOND_CHARACTER_COLOR), Game::RET_BIG],
+                                  [t('equal'), Game::RET_MIDDLE]],
+                      {include_blank: true} %>
+      <%= form.text_field :user_mobile %>
+
+      <div class="form-group">
+        <div class="input-group input-group-lg">
+          <%= number_field_tag 'user_pin', nil, class: 'form-control', placeholder: t('captcha') %>
+          <div class="input-group-btn">
+            <button id="pin_btn" class="btn btn-primary"></button>
+          </div>
+        </div><!-- /input-group -->
+      </div>
+    <% end %>
+
+  <% else %>
+    <p>No available game.</p>
+  <% end %>
+
+</div>

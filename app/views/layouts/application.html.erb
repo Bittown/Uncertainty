@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>GuessingGame</title>
+  <%= csrf_meta_tags %>
+
+  <%= stylesheet_link_tag 'application', media: 'all', 'data-turbolinks-track': 'reload' %>
+  <%= javascript_include_tag 'application', 'data-turbolinks-track': 'reload' %>
+</head>
+
+<body>
+<%= render 'layouts/header' %>
+
+<div class="container">
+<% if alert %>
+  <p class="alert alert-danger fade-in"><%= alert %></p>
+<% elsif notice %>
+  <p class="alert alert-info fade-in"><%= notice %></p>
+<% else %>
+  <% flash.each do |k, v| %>
+    <p class="alert alert-<%= k %> fade-in"><%= v %></p>
+  <% end %>
+<% end %>
+</div>
+
+<%= yield %>
+
+<%= render 'layouts/footer' %>
+
+<%= debug(params) if Rails.env.development? %>
+
+</body>
+</html>

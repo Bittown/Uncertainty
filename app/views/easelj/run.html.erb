@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>GuessingGame</title>
+  <%= csrf_meta_tags %>
+  <%= stylesheet_link_tag 'application', media: 'all', 'data-turbolinks-track': 'reload' %>
+  <%= javascript_include_tag 'easeljs.min', 'data-turbolinks-track': 'reload' %>
+  <%= javascript_include_tag 'preloadjs.min', 'data-turbolinks-track': 'reload' %>
+  <script>
+    var stage, w, h, loader;
+    var sky, grant, ground, hill1, hill2;
+
+    function init() {
+      stage = new createjs.Stage("demoCanvas");
+      w = stage.canvas.width;
+      h = stage.canvas.height;
+
+      var manifest = [
+        {src: "<%= asset_path('run/spritesheet_grant.png') %>", id: "grant"},
+        {src: "<%= asset_path('run/sky.png') %>", id: "sky"},
+        {src: "<%= asset_path('run/ground.png') %>", id: "ground"},
+        {src: "<%= asset_path('run/hill1.png') %>", id: "hill1"},
+        {src: "<%= asset_path('run/hill2.png') %>", id: "hill2"}];
+
+      loader = new createjs.LoadQueue(true);
+      loader.addEventListener("error", handleError);
+      loader.addEventListener("complete", handleComplete);
+      loader.loadManifest(manifest, true);
+    }
+
+    function handleComplete() {
+      sky = new createjs.Shape();
+      sky.graphics.beginBitmapFill(loader.getResult("sky")).drawRect(0, 0, w, h);
+
+      var groundImg = loader.getResult("ground");
+      ground = new createjs.Shape();
+      ground.graphics.beginBitmapFill(groundImg).drawRect(0, 0, w + groundImg.width, groundImg.height);
+      ground.tileW = groundImg.width;
+      ground.y = h - groundImg.height;
+
+      hill1 = new createjs.Bitmap(loader.getResult("hill1"));
+      hill1.setTransform(Math.random() * w, h - (hill1.image.height << 2) - groundImg.height, 4, 4);
+      hill1.alpha = 0.5;
+
+      hill2 = new createjs.Bitmap(loader.getResult("hill2"));
+      hill2.setTransform(Math.random() * w, h - hill2.image.height * 3 - groundImg.height, 3, 3);
+
+      var spriteSheet = new createjs.SpriteSheet({
+        framerate: 30,
+        "images": [loader.getResult("grant")],
+        "frames": {regX: 82, height: 292, count: 64, regY: 0, width: 165},
+        "animations": {
+          "run": [8, 25, "run", 1.5],
+          "jump": [26, 63, "run"]
+        }
+      });
+
+      grant = new createjs.Sprite(spriteSheet, "run");
+      grant.y = 35;
+
+      stage.addChild(sky, hill1, hill2, ground, grant);
+      stage.addEventListener("stagemousedown", handleJumpStart);
+
+      createjs.Ticker.timingMode = createjs.Ticker.RAF;
+      createjs.Ticker.addEventListener("tick", tick);
+    }
+
+    function handleError(e) {
+      console.log("Error loading images: " + e.message);
+    }
+
+    function handleJumpStart() {
+      grant.gotoAndPlay("jump");
+    }
+
+    function tick(event) {
+      var deltaS = event.delta / 1000;
+      var position = grant.x + 150 * deltaS;
+
+      var grantW = grant.getBounds().width * grant.scaleX;
+      grant.x = (position >= w + grantW) ? -grantW : position;
+
+      ground.x = (ground.x - deltaS * 150) % ground.tileW;
+
+      hill1.x = (hill1.x - deltaS * 30);
+      if (hill1.x + hill1.image.width * hill1.scaleX <= 0) {
+        hill1.x = w;
+      }
+      hill2.x = (hill2.x - deltaS * 45);
+      if (hill2.x + hill2.image.width * hill2.scaleX <= 0) {
+        hill2.x = w;
+      }
+
+      stage.update(event);
+    }
+
+  </script>
+</head>
+
+<body onload="init();">
+
+<% if alert %>
+  <p class="alert alert-danger fade in"><%= alert %></p>
+<% elsif notice %>
+  <p class="alert alert-info fade in"><%= notice %></p>
+<% end %>
+
+<div class="container center">
+  <div class="row">
+    <h1>CreateJs demo</h1>
+  </div>
+  <div class="row">
+    <canvas id="demoCanvas" width="960" height="400"></canvas>
+  </div>
+</div>
+
+</body>
+</html>

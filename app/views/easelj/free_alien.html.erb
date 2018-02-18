@@ -1,0 +1,1579 @@
+
+<%= javascript_include_tag 'Queue', 'data-turbolinks-track': 'reload' %>
+<%= javascript_include_tag 'soundjs.min', 'data-turbolinks-track': 'reload' %>
+<script>
+  const FRAME_RATE = 60,
+      DEFAULT_PACE = 2,
+      ENERGY_PER_JUMP = 250,
+      SOUND_BG = "sound_bg",
+      TILE_W = 128, TILE_H = 128, TILE_H_W_RATE = TILE_H / TILE_W,
+      CHARACTER_W = 128, CHARACTER_H = 256, CHARACTER_HEAD_WHITE = 100,
+      HUD_SCALE_RATIO = 0.5, HUD_SCALED_W = TILE_W * HUD_SCALE_RATIO, HUD_SCALED_H = TILE_H * HUD_SCALE_RATIO;
+
+  const BG_STYLES = ["blue_desert", "blue_grass", "blue_land", "blue_shroom"],
+      COIN_TYPES = ["coinBronze", "coinGold", "coinSilver", "gemBlue", "gemGreen", "gemRed", "gemYellow"],
+      GROUND_STYLES = ["dirt", "snow", "grass", "planet", "sand", "stone"],
+      CHARACTER_COLORS = ["beige", "blue", "green", "pink", "yellow"];
+
+  const GROUND_COLUMNS = {
+    none: [],
+    left: ["Left"],
+    left_high: ["Left", "Center"],
+    right: ["Right"],
+    right_right: ["Right", "Center"],
+    mid: ["Mid"],
+    mid_high: ["Mid", "Center"],
+    hill_left: ["Hill_left", "Corner_left"],
+    hill_right: ["Hill_right", "Corner_right"],
+    water: ["waterTop_low"],
+    water_high: ["waterTop_low", "water"],
+    bridgeA: ["BridgeA"],
+    bridgeA_high: ["BridgeA", "blank"],
+    bridgeB: ["BridgeB"],
+    bridgeB_high: ["BridgeB", "waterTop_high"]
+  };
+
+  const BG_STYLE = "blue_desert",
+      GROUND_STYLE = "dirt",
+      PLAYER_COLOR_1 = "blue",
+      PLAYER_COLOR_2 = "pink";
+
+  var canvas, stage, w, h, loader, resizeTimer = null, startTime = Date.now();
+
+  var groundSpriteSheets, characterSpriteSheets;
+  var itemSpriteSheet, hudSpriteSheet, hudFactory;
+
+  var sound_bg,
+      bg,
+      ground,
+      // gameInfo,
+      player1,
+      // player2,
+      gameMsg;
+
+  var firstPlayer;
+
+  var isResizing = false, isInitialized = false;
+
+
+  /**
+   * HudNumber
+   */
+  (function () {
+    function HudNumber(value) {
+      this.Container_constructor();
+      this.setValue(value);
+    }
+
+    var p = createjs.extend(HudNumber, createjs.Container);
+
+    p.setValue = function (value) {
+      if (this.value === value) {
+        return;
+      }
+      this.value = value;
+      this.updateGraph();
+    };
+
+    p.addValue = function (value) {
+      this.value += value;
+      this.updateGraph();
+    };
+
+    p.minusValue = function (value) {
+      this.value -= value;
+      this.minusValue(value);
+    };
+
+    p.updateGraph = function () {
+      if (this.value < 0) {
+        console.log("Negative value " + this.value + " would be set to be zero");
+        this.value = 0;
+      }
+
+      const nums = (this.value).toString(10).split("").map(i => "hud" + i);
+      for (var i = this.numChildren; i < nums.length; ++i) {
+        var num = hudFactory.get("hud0");
+        num.x = i * HUD_SCALED_W;
+        this.addChild(num);
+      }
+
+      for (var i = nums.length; i < this.numChildren; ++i) {
+        this.removeChildAt(i);
+      }
+
+      var that = this;
+      nums.forEach(function (v, i) {
+        var item = that.getChildAt(i);
+        if (item.currentAnimation !== v) {
+          item.gotoAndPlay(v);
+        }
+      });
+    };
+
+    window.HudNumber = createjs.promote(HudNumber, "Container");
+  }());
+
+  /**
+   * Game Information
+   */
+  (function () {
+    function GameInformation() {
+      this.Container_constructor();
+
+      this.coinOffset = HUD_SCALED_W * 6;
+      this.energyOffset = HUD_SCALED_W * 11;
+      // this.players = [];
+      // this.headers = [];
+      this.steps = [];
+      this.coins = [];
+      this.coinNums = [];
+      this.energies = [];
+      this.energyNums = [];
+
+      this.addPlayer(player1);
+      // this.addPlayer(player2);
+    }
+
+    var p = createjs.extend(GameInformation, createjs.Container);
+
+    p.addPlayer = function (player) {
+      const i = this.players.length;
+      const hudH = HUD_SCALED_H * i;
+
+      var playerType = "hudPlayer_beige";
+      switch (player.characterColor) {
+        case "blue":
+          playerType = "hudPlayer_blue";
+          break;
+        case "green":
+          playerType = "hudPlayer_green";
+          break;
+        case "pink":
+          playerType = "hudPlayer_pink";
+          break;
+        case "yellow":
+          playerType = "hudPlayer_yellow";
+          break;
+      }
+      this.headers[i] = hudFactory.get(playerType);
+      this.headers[i].setTransform(HUD_SCALED_W, hudH, HUD_SCALE_RATIO, HUD_SCALE_RATIO);
+      this.steps[i] = new HudNumber(player.steps);
+      this.steps[i].setTransform(HUD_SCALED_W << 1, hudH, HUD_SCALE_RATIO, HUD_SCALE_RATIO);
+
+      this.coins[i] = hudFactory.get("hudCoin");
+      this.coins[i].setTransform(this.coinOffset, hudH, HUD_SCALE_RATIO, HUD_SCALE_RATIO);
+      this.coinNums[i] = new HudNumber(player.coins);
+      this.coinNums[i].setTransform(
+          this.coinOffset + HUD_SCALED_W, hudH, HUD_SCALE_RATIO, HUD_SCALE_RATIO);
+
+      this.energies[i] = hudFactory.get("hudHeart_empty");
+      this.energies[i].setTransform(this.energyOffset, hudH, HUD_SCALE_RATIO, HUD_SCALE_RATIO);
+      this.energyNums[i] = new HudNumber(player.energy);
+      this.energyNums[i].setTransform(
+          this.energyOffset + HUD_SCALED_W, hudH, HUD_SCALE_RATIO, HUD_SCALE_RATIO);
+
+      this.addChild(this.headers[i], this.steps[i],
+          this.coins[i], this.coinNums[i],
+          this.energies[i], this.energyNums[i]);
+      this.players[i] = player;
+    };
+
+    p.onTick = function (event) {
+      var that = this;
+      this.players.forEach(function (player, i) {
+        that.steps[i].setValue(Math.floor(player.steps));
+        that.coinNums[i].setValue(Math.floor(player.coins));
+        that.energyNums[i].setValue(Math.floor(player.energy));
+      });
+    };
+
+    window.GameInformation = createjs.promote(GameInformation, "Container");
+  }());
+
+  /**
+   * Background
+   */
+  (function () {
+    function Background(style) {
+      this.Shape_constructor();
+      this.img = loader.getResult(style);
+      this.offset = 0;
+      this.heightScaleRatio = 1;
+      this.scaledW = this.img.width;
+      this.MAX_STILL = 1 << 10;
+      this.still = 0;
+    }
+
+    var p = createjs.extend(Background, createjs.Shape);
+
+    p.repaint = function () {
+      this.heightScaleRatio = h / this.img.height;
+      this.offset *= this.heightScaleRatio;
+      this.scaledW = this.img.width * this.heightScaleRatio;
+      this.graphics.beginBitmapFill(this.img).drawRect(
+          0, 0, w / this.heightScaleRatio + this.img.width, this.img.height);
+      this.setTransform(0, 0, this.heightScaleRatio, this.heightScaleRatio);
+    };
+
+    p.onTick = function (event) {
+      if (!(++this.still % this.MAX_STILL)) {
+        return;
+      }
+      this.offset += 1;
+      if (this.offset > this.scaledW) {
+        this.offset -= this.scaledW;
+      }
+      this.x = -1 * this.offset;
+    };
+
+    window.Background = createjs.promote(Background, "Shape");
+  }());
+
+  /**
+   * Coin
+   */
+  (function () {
+    function Coin(type) {
+      this.Sprite_constructor();
+      this.initialize(itemSpriteSheet, type);
+      switch (type) {
+        case "coinBronze":
+          this.value = 1;
+          break;
+        case "coinSilver":
+          this.value = 10;
+          break;
+        case "coinGold":
+          this.value = 100;
+          break;
+        case "gemBlue":
+          this.value = 200;
+          break;
+        case "gemGreen":
+          this.value = 300;
+          break;
+        case "gemRed":
+          this.value = 400;
+          break;
+        case "gemYellow":
+          this.value = 500;
+          break;
+      }
+    }
+
+    createjs.extend(Coin, createjs.Sprite);
+
+    window.Coin = createjs.promote(Coin, "Sprite");
+  }());
+
+  /**
+   * GroundColumn
+   */
+  (function () {
+    function GroundColumn(style, columnType, coinType) {
+      this.Container_constructor();
+
+      var that = this;
+      const brickNames = GROUND_COLUMNS[columnType];
+      brickNames.forEach(function (name, index) {
+        var brick = new createjs.Sprite(groundSpriteSheets.get(style), name);
+        brick.y = TILE_H * index;
+        that.addChild(brick);
+      });
+
+      this.layer = brickNames.length;
+      this.y = h - this.layer * TILE_H;
+      this.balance = 0;
+      this.canHold = false;
+      this.flag = null;
+
+      if (this.layer > 0) {
+        const name = brickNames[0];
+        if (/^[A-Z]/.test(name)) {
+          this.canHold = true;
+          this.shellT = "ground";
+          switch (name) {
+            case "Hill_right":
+              this.shellT = "ground_lean";
+              this.balance = 1;
+              break;
+            case "Hill_left":
+              this.shellT = "ground_lean";
+              this.balance = -1;
+              break;
+            case "Mid":
+              if (coinType === "flag") {
+                this.flag = new createjs.Sprite(itemSpriteSheet, "flagRed");
+                this.flag.y = -1 * TILE_H;
+                this.addChild(this.flag);
+              } else {
+                this.genTile(style);
+              }
+              break;
+          }
+        } else if (/^water/.test(brickNames)) {
+          this.shellT = "water";
+        } else {
+          this.shellT = "unknown";
+        }
+      } else {
+        this.shellT = "unknown";
+      }
+
+      switch (coinType) {
+        case "none":
+        case "flag":
+          this.coin = null;
+          break;
+        default:
+          this.coin = new Coin(coinType);
+          this.coin.y = -2 * TILE_H;
+          this.addChild(this.coin);
+          this.coin_y_from = this.y + this.coin.y;
+          this.coin_y_to = this.coin_y_from + TILE_H;
+      }
+    }
+
+    var p = createjs.extend(GroundColumn, createjs.Container);
+
+    p.repaint = function () {
+      this.y = h - this.layer * TILE_H;
+      if (this.coin !== null) {
+        this.coin_y_from = this.y + this.coin.y;
+        this.coin_y_to = this.coin_y_from + TILE_H;
+      }
+    };
+
+    p.genTile = function (style) {
+      const r = Math.random();
+      if (r < 0.7) {
+        var tile = new createjs.Sprite(groundSpriteSheets.get(style),
+            r < 0.4 ? "hi" : "hello");
+        tile.y = -1 * TILE_H;
+        this.addChild(tile);
+      }
+    };
+
+    p.shellYAt = function (positionX) {
+      var ret = this.canHold ? this.y : this.y + TILE_H;
+      switch (this.balance) {
+        case -1:
+          return ret + (TILE_H - (positionX - this.x) * TILE_H_W_RATE);
+        case 1:
+          return ret + (positionX - this.x) * TILE_H_W_RATE;
+        default:
+          return ret;
+      }
+    };
+
+    p.itemsHitTest = function (y_from, y_to) {
+      if (this.coin !== null && y_to >= this.coin_y_from && y_from <= this.coin_y_to) {
+        const v = this.coin.value;
+        this.removeChild(this.coin);
+        this.coin = null;
+        return v;
+      }
+      return 0;
+    };
+
+    window.GroundColumn = createjs.promote(GroundColumn, "Container");
+  }());
+
+  /**
+   * Ground
+   */
+  (function () {
+    function Ground(style) {
+      this.Container_constructor();
+
+      this.groundStyle = style;
+      this.columns = new Queue();
+      this.nextColumnX = 0;
+      this.lastColumnType = "none";
+      this.steps = 0;
+      this.isFlagGenerated = false;
+    }
+
+    var p = createjs.extend(Ground, createjs.Container);
+
+    p.repaint = function () {
+      this.columnsNeeded = Math.ceil(w / TILE_W) + 1;
+
+      var columns_num = this.columns.getLength();
+      while (columns_num-- > 0) {
+        this.getChildAt(columns_num).repaint();
+      }
+
+      while (this.columns.getLength() < this.columnsNeeded) {
+        this.addColumn();
+      }
+    };
+
+    p.onTick = function (event) {
+      this.nextColumnX -= firstPlayer.speed_w;
+
+      var index = this.columns.getLength();
+      while (index-- > 0) {
+        var column = this.getChildAt(index);
+        column.x -= firstPlayer.speed_w;
+        if (column.x <= -1 * TILE_W) {
+          this.forwardColumns();
+          while (index-- > 0) {
+            this.rmEarliestColumn();
+          }
+        }
+      }
+    };
+
+    p.columnAt = function (positionX) {
+      if (this.columns.isEmpty()) {
+        console.log("Ground should not be empty");
+        return null;
+      }
+
+      const len = this.columns.getLength();
+      var idx = Math.floor(len * positionX / w);
+      while (idx > 0 && this.getChildAt(idx).x > positionX) {
+        --idx;
+      }
+      return this.getChildAt(idx);
+    };
+
+    p.firstColumn = function () {
+      if (this.columns.isEmpty()) {
+        console.log("Ground should not be empty");
+        return null;
+      }
+
+      return this.getChildAt(0);
+    };
+
+    p.randomColumnType = function () {
+      if (this.lastColumnType === "none") {
+        return "left";
+      } else {
+        const r = Math.random();
+        switch (this.lastColumnType) {
+          case "left":
+            return (r < 0.5) ? "hill_left" : "mid";
+          case "hill_left":
+            return "mid_high";
+          case "mid":
+            if (r < 0.3) {
+              return "right";
+            } else if (r < 0.7) {
+              return "hill_left";
+            }
+            return "mid";
+          case "mid_high":
+            if (r < 0.4) {
+              return "hill_right";
+            }
+            return "mid_high";
+          case "hill_right":
+            return (r < 0.6) ? "mid" : "right";
+          case "right":
+            if (r < 0.4) {
+              return "water";
+            }
+            if (r < 0.6) {
+              return "bridgeA";
+            }
+            if (r < 0.8) {
+              return "bridgeB";
+            }
+            return "none";
+          case "water":
+            if (r < 0.3) {
+              return "left"
+            }
+            return "water";
+          case "bridgeA":
+            if (r < 0.4) {
+              return "left"
+            }
+            return "bridgeA";
+          case "bridgeB":
+            if (r < 0.4) {
+              return "left"
+            }
+            return "bridgeB";
+          default:
+            console.log("Invalid lastColumnType " + this.lastColumnType);
+            return "none";
+        }
+      }
+    };
+
+    p.addColumn = function () {
+      this.lastColumnType = this.randomColumnType();
+
+      var coinType = "none";
+      if (this.isFlagGenerated) {
+        if (Math.random() < 0.5) {
+          coinType = COIN_TYPES[Math.floor(Math.random() * COIN_TYPES.length)];
+        }
+      } else {
+        if (Math.random() < 0.5) {
+          coinType = COIN_TYPES[Math.floor(Math.random() * COIN_TYPES.length)];
+        }
+      }
+
+      var column = new GroundColumn(this.groundStyle, this.lastColumnType, coinType);
+      column.x = this.nextColumnX;
+      this.nextColumnX += TILE_W;
+      this.addChild(column);
+      this.columns.enqueue(column);
+
+      this.steps += TILE_W;
+    };
+
+    p.rmEarliestColumn = function () {
+      var column = this.columns.dequeue();
+      this.removeChild(column);
+    };
+
+    p.forwardColumns = function () {
+      this.rmEarliestColumn();
+
+      if (this.numChildren < this.columnsNeeded) {
+        this.addColumn();
+      }
+    };
+
+    window.Ground = createjs.promote(Ground, "Container");
+  }());
+
+  /**
+   * Character
+   */
+  (function () {
+    function Character(color) {
+      this.Sprite_constructor();
+
+      this.COLOR = color;
+      const spriteSheet = characterSpriteSheets.get(color);
+      this.initialize(spriteSheet, "walk");
+      this.DEFAULT_H_SPEED = (CHARACTER_H << 1) / FRAME_RATE;
+      this.ACCELARATION = ((this.DEFAULT_H_SPEED - 2) << 1) / FRAME_RATE;
+      this.speed_h = 0;
+      this.speed_w = DEFAULT_PACE;
+      this.speed_w_rate = 1;
+      this.characterColor = color;
+      this.energy = 9999;
+      this.energy_recovery_speed = 1;
+      this.steps = 0;
+      this.coins = 0;
+      this.isOut = false;
+      this.x = w / 2;
+    }
+
+    var p = createjs.extend(Character, createjs.Sprite);
+
+    p.repaint = function () {
+      // Do nothing
+      return;
+//      if(this === firstPlayer) {
+//        this.x = w / 2;
+//      }else{
+//        this.x = (w / 2) - (firstPlayer.x - this.x);
+//      }
+    };
+
+    p.onTick = function (event) {
+      this.energy += this.energy_recovery_speed;
+      if (this.energy >= 9999) {
+        this.energy = 9999;
+      }
+
+      var speed_w = this.speed_w;
+      if (this.x < (CHARACTER_W * -1)) {
+        // speed bonus;
+        this.goJump();
+        this.speed_w = (DEFAULT_PACE * this.speed_w_rate) * 1.5;
+
+        if (this.x < (CHARACTER_W * -2)) {
+          this.y = 0;
+        }
+      }
+
+      this.steps += speed_w;
+      this.x -= firstPlayer.speed_w - speed_w;
+
+      this.y -= this.speed_h;
+
+      const positionX = this.x + (CHARACTER_W >> 1);
+      const player_y_to = this.y + CHARACTER_H;
+      const player_y_from = player_y_to - CHARACTER_HEAD_WHITE;
+      var nextColumn = this.x < (CHARACTER_W * (-0.5)) ?
+          ground.firstColumn() : ground.columnAt(positionX);
+      this.coins += nextColumn.itemsHitTest(player_y_from, player_y_to);
+
+      var leastY = nextColumn.shellYAt(positionX) - CHARACTER_H;
+
+      var act = this.goJump;
+      switch (nextColumn.shellT) {
+        case "water":
+          act = this.goSwim;
+          break;
+        case "ground":
+        case "ground_lean":
+          act = this.goWalk;
+          break;
+        default:
+          this.goJump();
+          break;
+      }
+
+      if (Math.random() < 0.01) {
+        this.goJump();
+      }
+
+      if (this.y > leastY) {
+        if (this.y - leastY > (TILE_H >> 1)) {
+          this.goClimb();
+        } else {
+          this.y = leastY;
+          act.apply(this);
+        }
+      } else if (this.y < leastY) {
+        this.goDrop();
+      }
+    };
+
+    p.goClimb = function () {
+      if (this.currentAnimation === "climb") {
+        return;
+      }
+      <% if current_game %>
+      this.speed_w = (DEFAULT_PACE * this.speed_w_rate) >> 1;
+      <% else %>
+      this.speed_w = DEFAULT_PACE * this.speed_w_rate;
+      <% end %>
+      this.speed_h = this.DEFAULT_H_SPEED >> 2;
+      this.gotoAndPlay("climb");
+    };
+
+    p.goSwim = function () {
+      if (this.currentAnimation === "swim") {
+        return;
+      }
+
+      <% if current_game %>
+      this.speed_w = (DEFAULT_PACE * this.speed_w_rate) >> 1;
+      <% else %>
+      this.speed_w = DEFAULT_PACE * this.speed_w_rate;
+      <% end %>
+      this.speed_h = 0;
+      this.gotoAndPlay("swim");
+    };
+
+    p.goWalk = function () {
+      if (this.currentAnimation === "walk") {
+        return;
+      }
+
+      this.speed_w = DEFAULT_PACE * this.speed_w_rate;
+      this.speed_h = 0;
+      this.gotoAndPlay("walk");
+    };
+
+    p.goJump = function () {
+      if (this.currentAnimation === "jump" || this.currentAnimation === "climb") {
+        return;
+      }
+      if (this.energy < ENERGY_PER_JUMP) {
+        return;
+      }
+
+      this.energy -= ENERGY_PER_JUMP;
+      this.speed_w = (DEFAULT_PACE * this.speed_w_rate) * 1.5;
+      if (this.currentAnimation === "swim") {
+        this.speed_h = this.DEFAULT_H_SPEED >> 1;
+      } else {
+        this.speed_h = this.DEFAULT_H_SPEED;
+      }
+      this.gotoAndPlay("jump");
+    };
+
+    p.goDrop = function () {
+      this.speed_h -= this.ACCELARATION;
+      if (this.currentAnimation === "jump") {
+        return;
+      }
+      this.gotoAndPlay("jump");
+    };
+
+    window.Character = createjs.promote(Character, "Sprite");
+  }());
+
+
+  /*
+   * Main program begin * - * - * - * - * - * - * - * - * - * -
+   */
+
+  function playBG() {
+    setTimeout(function () {
+      sound_bg = createjs.Sound.play(SOUND_BG);
+      sound_bg.on("complete", function () {
+        playBG();
+      });
+    }, 1000);
+  }
+
+  function tick(event) {
+    if (isResizing) {
+      return;
+    }
+
+    gameMsg.text = "" + Date.now() - startTime;
+
+    bg.onTick(event);
+    ground.onTick(event);
+
+    player1.onTick(event);
+    // player2.onTick(event);
+
+    // firstPlayer = player1.steps > player2.steps ? player1 : player2;
+
+    // gameInfo.onTick(event);
+
+    stage.update(event);
+  }
+
+  function handleComplete() {
+
+    /**
+     * GroundTileSpriteSheets
+     */
+    groundSpriteSheets = new function () {
+      this.sheets = new Map();
+      this.get = function (style) {
+        if (this.sheets.size <= 0) {
+
+          this.sheets.set("dirt", new createjs.SpriteSheet({
+            images: [loader.getResult("spritesheet_complete")],
+            frames: [
+              [1820, 910, 128, 128] /*dirt,90*/,
+              [1820, 780, 128, 128] /*dirtCenter,91*/,
+              [1820, 650, 128, 128] /*dirtCenter_rounded,92*/,
+              [1820, 520, 128, 128] /*dirtCliffAlt_left,93*/,
+              [1820, 390, 128, 128] /*dirtCliffAlt_right,94*/,
+              [1820, 260, 128, 128] /*dirtCliff_left,95*/,
+              [1820, 130, 128, 128] /*dirtCliff_right,96*/,
+              [1820, 0, 128, 128] /*dirtCorner_left,97*/,
+              [1690, 1820, 128, 128] /*dirtCorner_right,98*/,
+              [1690, 1690, 128, 128] /*dirtHalf,99*/,
+              [1690, 1560, 128, 128] /*dirtHalf_left,100*/,
+              [1690, 1430, 128, 128] /*dirtHalf_mid,101*/,
+              [1690, 1300, 128, 128] /*dirtHalf_right,102*/,
+              [1690, 1170, 128, 128] /*dirtHill_left,103*/,
+              [1690, 1040, 128, 128] /*dirtHill_right,104*/,
+              [1690, 910, 128, 128] /*dirtLeft,105*/,
+              [1690, 780, 128, 128] /*dirtMid,106*/,
+              [1690, 650, 128, 128] /*dirtRight,107*/,
+
+              [1820, 1690, 128, 128] /*water,342*/,
+              [1820, 1560, 128, 128] /*waterTop_high,343*/,
+              [1820, 1430, 128, 128] /*waterTop_low,344*/,
+              [2210, 130, 128, 128] /*lava,209*/,
+              [2210, 0, 128, 128] /*lavaTop_high,210*/,
+              [2080, 1820, 128, 128] /*lavaTop_low,211*/,
+              [2340, 0, 128, 128] /*bridgeA,82*/,
+              [2210, 1820, 128, 128] /*bridgeB,83*/,
+
+              [2210, 1560, 128, 128] /*cactus,85*/,
+              [2210, 520, 128, 128] /*grass*/,
+
+              [3510, 1820, 128, 128] /*blank*/
+            ],
+            animations: {
+              alone: 0,
+              Center: 1,
+              Center_round: 2,
+              CliffAlt_right: 3,
+              CliffAlt_left: 4,
+              Cliff_right: 5,
+              Cliff_left: 6,
+              Corner_right: 7,
+              Corner_left: 8,
+              Half: 9,
+              Half_right: 10,
+              Half_mid: 11,
+              Half_left: 12,
+              Hill_right: 13,
+              Hill_left: 14,
+              Left: 15,
+              Mid: 16,
+              Right: 17,
+
+              water: 18,
+              waterTop_high: 19,
+              waterTop_low: 20,
+              lava: 21,
+              lavaTop_high: 22,
+              lavaTop_low: 23,
+              BridgeA: 24,
+              BridgeB: 25,
+
+              hi: 26,
+              hello: 27,
+
+              blank: 28
+            }
+          }));
+
+          this.sheets.set("snow", new createjs.SpriteSheet({
+            images: [loader.getResult("spritesheet_complete")],
+            frames: [
+              [1170, 1300, 128, 128] /*snow,290*/,
+              [1170, 1170, 128, 128] /*snowCenter,291*/,
+              [1170, 1040, 128, 128] /*snowCenter_rounded,292*/,
+              [1170, 910, 128, 128] /*snowCliffAlt_left,293*/,
+              [1170, 780, 128, 128] /*snowCliffAlt_right,294*/,
+              [1170, 650, 128, 128] /*snowCliff_left,295*/,
+              [1170, 520, 128, 128] /*snowCliff_right,296*/,
+              [1170, 390, 128, 128] /*snowCorner_left,297*/,
+              [1170, 260, 128, 128] /*snowCorner_right,298*/,
+              [1170, 130, 128, 128] /*snowHalf,299*/,
+              [1170, 0, 128, 128] /*snowHalf_left,300*/,
+              [1040, 1820, 128, 128] /*snowHalf_mid,301*/,
+              [1040, 1690, 128, 128] /*snowHalf_right,302*/,
+              [1040, 1560, 128, 128] /*snowHill_left,303*/,
+              [1040, 1430, 128, 128] /*snowHill_right,304*/,
+              [1040, 1300, 128, 128] /*snowLeft,305*/,
+              [1040, 1170, 128, 128] /*snowMid,306*/,
+              [1040, 1040, 128, 128] /*snowRight,307*/,
+
+              [1820, 1690, 128, 128] /*water,342*/,
+              [1820, 1560, 128, 128] /*waterTop_high,343*/,
+              [1820, 1430, 128, 128] /*waterTop_low,344*/,
+              [2210, 130, 128, 128] /*lava,209*/,
+              [2210, 0, 128, 128] /*lavaTop_high,210*/,
+              [2080, 1820, 128, 128] /*lavaTop_low,211*/,
+              [2340, 0, 128, 128] /*bridgeA,82*/,
+              [2210, 1820, 128, 128] /*bridgeB,83*/,
+
+              [1950, 1690, 128, 128] /*snow*/,
+              [2080, 390, 128, 128] /*rock,243*/,
+
+              [3510, 1820, 128, 128] /*blank*/
+            ],
+            animations: {
+              alone: 0,
+              Center: 1,
+              Center_round: 2,
+              CliffAlt_right: 3,
+              CliffAlt_left: 4,
+              Cliff_right: 5,
+              Cliff_left: 6,
+              Corner_right: 7,
+              Corner_left: 8,
+              Half: 9,
+              Half_right: 10,
+              Half_mid: 11,
+              Half_left: 12,
+              Hill_right: 13,
+              Hill_left: 14,
+              Left: 15,
+              Mid: 16,
+              Right: 17,
+
+              water: 18,
+              waterTop_high: 19,
+              waterTop_low: 20,
+              lava: 21,
+              lavaTop_high: 22,
+              lavaTop_low: 23,
+              BridgeA: 24,
+              BridgeB: 25,
+
+              hi: 26,
+              hello: 27,
+
+              blank: 28
+            }
+          }));
+
+          this.sheets.set("grass", new createjs.SpriteSheet({
+            images: [loader.getResult("spritesheet_complete")],
+            frames: [
+              [1690, 520, 128, 128] /*grass,146*/,
+              [1690, 390, 128, 128] /*grassCenter,147*/,
+              [1690, 260, 128, 128] /*grassCenter_round,148*/,
+              [1690, 130, 128, 128] /*grassCliffAlt_left,149*/,
+              [1690, 0, 128, 128] /*grassCliffAlt_right,150*/,
+              [1560, 1820, 128, 128] /*grassCliff_left,151*/,
+              [1560, 1690, 128, 128] /*grassCliff_right,152*/,
+              [1560, 1560, 128, 128] /*grassCorner_left,153*/,
+              [1560, 1430, 128, 128] /*grassCorner_right,154*/,
+              [1560, 1300, 128, 128] /*grassHalf,155*/,
+              [1560, 1170, 128, 128] /*grassHalf_left,156*/,
+              [1560, 1040, 128, 128] /*grassHalf_mid,157*/,
+              [1560, 910, 128, 128] /*grassHalf_right,158*/,
+              [1560, 780, 128, 128] /*grassHill_left,159*/,
+              [1560, 650, 128, 128] /*grassHill_right,160*/,
+              [1560, 520, 128, 128] /*grassLeft,161*/,
+              [1560, 390, 128, 128] /*grassMid,162*/,
+              [1560, 260, 128, 128] /*grassRight,163*/,
+
+              [1820, 1690, 128, 128] /*water,342*/,
+              [1820, 1560, 128, 128] /*waterTop_high,343*/,
+              [1820, 1430, 128, 128] /*waterTop_low,344*/,
+              [2210, 130, 128, 128] /*lava,209*/,
+              [2210, 0, 128, 128] /*lavaTop_high,210*/,
+              [2080, 1820, 128, 128] /*lavaTop_low,211*/,
+              [2340, 0, 128, 128] /*bridgeA,82*/,
+              [2210, 1820, 128, 128] /*bridgeB,83*/,
+
+              [2210, 1690, 128, 128] /*bush,84*/,
+              [2210, 520, 128, 128] /*grass*/,
+
+              [3510, 1820, 128, 128] /*blank*/
+            ],
+            animations: {
+              alone: 0,
+              Center: 1,
+              Center_round: 2,
+              CliffAlt_right: 3,
+              CliffAlt_left: 4,
+              Cliff_right: 5,
+              Cliff_left: 6,
+              Corner_right: 7,
+              Corner_left: 8,
+              Half: 9,
+              Half_right: 10,
+              Half_mid: 11,
+              Half_left: 12,
+              Hill_right: 13,
+              Hill_left: 14,
+              Left: 15,
+              Mid: 16,
+              Right: 17,
+
+              water: 18,
+              waterTop_high: 19,
+              waterTop_low: 20,
+              lava: 21,
+              lavaTop_high: 22,
+              lavaTop_low: 23,
+              BridgeA: 24,
+              BridgeB: 25,
+
+              hi: 26,
+              hello: 27,
+
+              blank: 28
+            }
+          }));
+
+          this.sheets.set("planet", new createjs.SpriteSheet({
+            images: [loader.getResult("spritesheet_complete")],
+            frames: [
+              [1560, 130, 128, 128] /*planet,224*/,
+              [1560, 0, 128, 128] /*planetCenter,225*/,
+              [1430, 1820, 128, 128] /*planetCenter_rounded,226*/,
+              [1430, 1690, 128, 128] /*planetCliffAlt_left,227*/,
+              [1430, 1560, 128, 128] /*planetCliffAlt_right,228*/,
+              [1430, 1430, 128, 128] /*planetCliff_left,229*/,
+              [1430, 1300, 128, 128] /*planetCliff_right,230*/,
+              [1430, 1170, 128, 128] /*planetCorner_left,231*/,
+              [1430, 1040, 128, 128] /*planetCorner_right,232*/,
+              [1430, 910, 128, 128] /*planetHalf,233*/,
+              [1430, 780, 128, 128] /*planetHalf_left,234*/,
+              [1430, 650, 128, 128] /*planetHalf_mid,235*/,
+              [1430, 520, 128, 128] /*planetHalf_right,236*/,
+              [1430, 390, 128, 128] /*planetHill_left,237*/,
+              [1430, 260, 128, 128] /*planetHill_right,238*/,
+              [1430, 130, 128, 128] /*planetLeft,239*/,
+              [1430, 0, 128, 128] /*planetMid,240*/,
+              [1300, 1820, 128, 128] /*planetRight,241*/,
+
+              [1820, 1690, 128, 128] /*water,342*/,
+              [1820, 1560, 128, 128] /*waterTop_high,343*/,
+              [1820, 1430, 128, 128] /*waterTop_low,344*/,
+              [2210, 130, 128, 128] /*lava,209*/,
+              [2210, 0, 128, 128] /*lavaTop_high,210*/,
+              [2080, 1820, 128, 128] /*lavaTop_low,211*/,
+              [2340, 0, 128, 128] /*bridgeA,82*/,
+              [2210, 1820, 128, 128] /*bridgeB,83*/,
+
+              [2080, 520, 128, 128] /*plantPurple,242*/,
+              [2210, 520, 128, 128] /*grass*/,
+
+              [3510, 1820, 128, 128] /*blank*/
+            ],
+            animations: {
+              alone: 0,
+              Center: 1,
+              Center_round: 2,
+              CliffAlt_right: 3,
+              CliffAlt_left: 4,
+              Cliff_right: 5,
+              Cliff_left: 6,
+              Corner_right: 7,
+              Corner_left: 8,
+              Half: 9,
+              Half_right: 10,
+              Half_mid: 11,
+              Half_left: 12,
+              Hill_right: 13,
+              Hill_left: 14,
+              Left: 15,
+              Mid: 16,
+              Right: 17,
+
+              water: 18,
+              waterTop_high: 19,
+              waterTop_low: 20,
+              lava: 21,
+              lavaTop_high: 22,
+              lavaTop_low: 23,
+              BridgeA: 24,
+              BridgeB: 25,
+
+              hi: 26,
+              hello: 27,
+
+              blank: 28
+            }
+          }));
+
+          this.sheets.set("sand", new createjs.SpriteSheet({
+            images: [loader.getResult("spritesheet_complete")],
+            frames: [
+              [1300, 1690, 128, 128] /*sand,244*/,
+              [1300, 1560, 128, 128] /*sandCenter,245*/,
+              [1300, 1430, 128, 128] /*sandCenter_rounded,246*/,
+              [1300, 1300, 128, 128] /*sandCliffAlt_left,247*/,
+              [1300, 1170, 128, 128] /*sandCliffAlt_right,248*/,
+              [1300, 1040, 128, 128] /*sandCliff_left,249*/,
+              [1300, 910, 128, 128] /*sandCliff_right,250*/,
+              [1300, 780, 128, 128] /*sandCorner_leftg,251*/,
+              [1300, 650, 128, 128] /*sandCorner_right,252*/,
+              [1300, 520, 128, 128] /*sandHalf,253*/,
+              [1300, 390, 128, 128] /*sandHalf_left,254*/,
+              [1300, 260, 128, 128] /*sandHalf_mid,255*/,
+              [1300, 130, 128, 128] /*sandHalf_right,256*/,
+              [1300, 0, 128, 128] /*sandHill_left,257*/,
+              [1170, 1820, 128, 128] /*sandHill_right,258*/,
+              [1170, 1690, 128, 128] /*sandLeft,259*/,
+              [1170, 1560, 128, 128] /*sandMid,260*/,
+              [1170, 1430, 128, 128] /*sandRight,261*/,
+
+              [1820, 1690, 128, 128] /*water,342*/,
+              [1820, 1560, 128, 128] /*waterTop_high,343*/,
+              [1820, 1430, 128, 128] /*waterTop_low,344*/,
+              [2210, 130, 128, 128] /*lava,209*/,
+              [2210, 0, 128, 128] /*lavaTop_high,210*/,
+              [2080, 1820, 128, 128] /*lavaTop_low,211*/,
+              [2340, 0, 128, 128] /*bridgeA,82*/,
+              [2210, 1820, 128, 128] /*bridgeB,83*/,
+
+              [2080, 780, 128, 128] /*mushroomBrown,222*/,
+              [2080, 650, 128, 128] /*mushroomRed,223*/,
+
+              [3510, 1820, 128, 128] /*blank*/
+            ],
+            animations: {
+              alone: 0,
+              Center: 1,
+              Center_round: 2,
+              CliffAlt_right: 3,
+              CliffAlt_left: 4,
+              Cliff_right: 5,
+              Cliff_left: 6,
+              Corner_right: 7,
+              Corner_left: 8,
+              Half: 9,
+              Half_right: 10,
+              Half_mid: 11,
+              Half_left: 12,
+              Hill_right: 13,
+              Hill_left: 14,
+              Left: 15,
+              Mid: 16,
+              Right: 17,
+
+              water: 18,
+              waterTop_high: 19,
+              waterTop_low: 20,
+              lava: 21,
+              lavaTop_high: 22,
+              lavaTop_low: 23,
+              BridgeA: 24,
+              BridgeB: 25,
+
+              hi: 26,
+              hello: 27,
+
+              blank: 28
+            }
+          }));
+
+          this.sheets.set("stone", new createjs.SpriteSheet({
+            images: [loader.getResult("spritesheet_complete")],
+            frames: [
+              [1040, 910, 128, 128] /*stone,312*/,
+              [1040, 780, 128, 128] /*stoneCenter,313*/,
+              [1040, 650, 128, 128] /*stoneCenter_rounded,314*/,
+              [1040, 520, 128, 128] /*stoneCliffAlt_left,315*/,
+              [1040, 390, 128, 128] /*stoneCliffAlt_right,316*/,
+              [1040, 260, 128, 128] /*stoneCliff_left,317*/,
+              [1040, 130, 128, 128] /*stoneCliff_right,318*/,
+              [1040, 0, 128, 128] /*stoneCorner_left,319*/,
+              [910, 1808, 128, 128] /*stoneCorner_right,320*/,
+              [910, 1678, 128, 128] /*stoneHalf,321*/,
+              [910, 1548, 128, 128] /*stoneHalf_left,322*/,
+              [780, 1806, 128, 128] /*stoneHalf_mid,323*/,
+              [650, 1806, 128, 128] /*stoneHalf_right,324*/,
+              [520, 1806, 128, 128] /*stoneHill_left,325*/,
+              [390, 1806, 128, 128] /*stoneHill_right,326*/,
+              [260, 1806, 128, 128] /*stoneLeft,327*/,
+              [130, 1806, 128, 128] /*stoneMid,328*/,
+              [0, 1806, 128, 128] /*stoneRight,329*/,
+
+              [1820, 1690, 128, 128] /*water,342*/,
+              [1820, 1560, 128, 128] /*waterTop_high,343*/,
+              [1820, 1430, 128, 128] /*waterTop_low,344*/,
+              [2210, 130, 128, 128] /*lava,209*/,
+              [2210, 0, 128, 128] /*lavaTop_high,210*/,
+              [2080, 1820, 128, 128] /*lavaTop_low,211*/,
+              [2340, 0, 128, 128] /*bridgeA,82*/,
+              [2210, 1820, 128, 128] /*bridgeB,83*/,
+
+              [2080, 390, 128, 128] /*rock,243*/,
+              [2210, 520, 128, 128] /*grass*/,
+
+              [3510, 1820, 128, 128] /*blank*/
+            ],
+            animations: {
+              alone: 0,
+              Center: 1,
+              Center_round: 2,
+              CliffAlt_right: 3,
+              CliffAlt_left: 4,
+              Cliff_right: 5,
+              Cliff_left: 6,
+              Corner_right: 7,
+              Corner_left: 8,
+              Half: 9,
+              Half_right: 10,
+              Half_mid: 11,
+              Half_left: 12,
+              Hill_right: 13,
+              Hill_left: 14,
+              Left: 15,
+              Mid: 16,
+              Right: 17,
+
+              water: 18,
+              waterTop_high: 19,
+              waterTop_low: 20,
+              lava: 21,
+              lavaTop_high: 22,
+              lavaTop_low: 23,
+              BridgeA: 24,
+              BridgeB: 25,
+
+              hi: 26,
+              hello: 27,
+
+              blank: 28
+            }
+          }));
+        }
+
+        return this.sheets.get(style);
+      };
+    };
+
+    /**
+     * CharacterSpriteSheets
+     */
+    characterSpriteSheets = new function () {
+      this.sheets = new Map();
+      this.get = function (color) {
+        if (this.sheets.size <= 0) {
+          this.sheets.set("beige", new createjs.SpriteSheet({
+            images: [loader.getResult("spritesheet_complete")],
+            frames: [
+              [910, 1290, 128, 256] /*alienBeige_climb1,0*/,
+              [910, 1032, 128, 256] /*alienBeige_climb2,1*/,
+              [910, 774, 128, 256] /*alienBeige_duck,2*/,
+              [910, 516, 128, 256] /*alienBeige_front,3*/,
+              [910, 258, 128, 256] /*alienBeige_hit,4*/,
+              [910, 0, 128, 256] /*alienBeige_jump,5*/,
+              [780, 1548, 128, 256] /*alienBeige_stand,6*/,
+              [780, 1290, 128, 256] /*alienBeige_swim1,7*/,
+              [780, 1032, 128, 256] /*alienBeige_swim2,8*/,
+              [780, 774, 128, 256] /*alienBeige_walk1,9*/,
+              [780, 516, 128, 256] /*alienBeige_walk2,10*/
+            ],
+            animations: {
+              climb: {frames: [0, 1], speed: 0.1},
+              duck: 2,
+              front: 3,
+              hit: 4,
+              jump: 5,
+              stand: 6,
+              swim: {frames: [7, 8], speed: 0.1},
+              walk: {frames: [9, 10], speed: 0.1}
+            }
+          }));
+
+          this.sheets.set("blue", new createjs.SpriteSheet({
+            images: [loader.getResult("spritesheet_complete")],
+            frames: [
+              [780, 258, 128, 256] /*alienBlue_climb1,11*/,
+              [780, 0, 128, 256] /*alienBlue_climb2,12*/,
+              [650, 1548, 128, 256] /*alienBlue_duck,13*/,
+              [650, 1290, 128, 256] /*alienBlue_front,14*/,
+              [650, 1032, 128, 256] /*alienBlue_hit,15*/,
+              [650, 774, 128, 256] /*alienBlue_jump,16*/,
+              [650, 516, 128, 256] /*alienBlue_stand,17*/,
+              [650, 258, 128, 256] /*alienBlue_swim1,18*/,
+              [650, 0, 128, 256] /*alienBlue_swim2,19*/,
+              [520, 1548, 128, 256] /*alienBlue_walk1,20*/,
+              [520, 1290, 128, 256] /*alienBlue_walk2,21*/
+            ],
+            animations: {
+              climb: {frames: [0, 1], speed: 0.1},
+              duck: 2,
+              front: 3,
+              hit: 4,
+              jump: 5,
+              stand: 6,
+              swim: {frames: [7, 8], speed: 0.1},
+              walk: {frames: [9, 10], speed: 0.1}
+            }
+          }));
+
+          this.sheets.set("green", new createjs.SpriteSheet({
+            images: [loader.getResult("spritesheet_complete")],
+            frames: [
+              [520, 1032, 128, 256] /*alienGreen_climb1,22*/,
+              [520, 774, 128, 256] /*alienGreen_climb2,23*/,
+              [520, 516, 128, 256] /*alienGreen_duck,24*/,
+              [520, 258, 128, 256] /*alienGreen_front,25*/,
+              [520, 0, 128, 256] /*alienGreen_hit,26*/,
+              [390, 1548, 128, 256] /*alienGreen_jump,27*/,
+              [390, 1290, 128, 256] /*alienGreen_stand,28*/,
+              [390, 1032, 128, 256] /*alienGreen_swim1,29*/,
+              [390, 774, 128, 256] /*alienGreen_swim2,30*/,
+              [390, 516, 128, 256] /*alienGreen_walk1,31*/,
+              [390, 258, 128, 256] /*alienGreen_walk2,32*/
+            ],
+            animations: {
+              climb: {frames: [0, 1], speed: 0.1},
+              duck: 2,
+              front: 3,
+              hit: 4,
+              jump: 5,
+              stand: 6,
+              swim: {frames: [7, 8], speed: 0.1},
+              walk: {frames: [9, 10], speed: 0.1}
+            }
+          }));
+
+          this.sheets.set("pink", new createjs.SpriteSheet({
+            images: [loader.getResult("spritesheet_complete")],
+            frames: [
+              [390, 0, 128, 256] /*alienPink_climb1,33*/,
+              [260, 1548, 128, 256] /*alienPink_climb2,34*/,
+              [260, 1290, 128, 256] /*alienPink_duck,35*/,
+              [260, 1032, 128, 256] /*alienPink_front,36*/,
+              [260, 774, 128, 256] /*alienPink_hit,37*/,
+              [260, 516, 128, 256] /*alienPink_jump,38*/,
+              [260, 258, 128, 256] /*alienPink_stand,39*/,
+              [260, 0, 128, 256] /*alienPink_swim1,40*/,
+              [130, 1548, 128, 256] /*alienPink_swim2,41*/,
+              [130, 1290, 128, 256] /*alienPink_walk1,42*/,
+              [130, 1032, 128, 256] /*alienPink_walk2,43*/
+            ],
+            animations: {
+              climb: {frames: [0, 1], speed: 0.1},
+              duck: 2,
+              front: 3,
+              hit: 4,
+              jump: 5,
+              stand: 6,
+              swim: {frames: [7, 8], speed: 0.1},
+              walk: {frames: [9, 10], speed: 0.1}
+            }
+          }));
+
+          this.sheets.set("yellow", new createjs.SpriteSheet({
+            images: [loader.getResult("spritesheet_complete")],
+            frames: [
+              [130, 774, 128, 256] /*alienYellow_climb1,44*/,
+              [130, 516, 128, 256] /*alienYellow_climb2,45*/,
+              [130, 258, 128, 256] /*alienYellow_duck,46*/,
+              [130, 0, 128, 256] /*alienYellow_front,47*/,
+              [0, 1548, 128, 256] /*alienYellow_hit,48*/,
+              [0, 1290, 128, 256] /*alienYellow_jump,49*/,
+              [0, 1032, 128, 256] /*alienYellow_stand,50*/,
+              [0, 774, 128, 256] /*alienYellow_swim1,51*/,
+              [0, 516, 128, 256] /*alienYellow_swim2,52*/,
+              [0, 258, 128, 256] /*alienYellow_walk1,53*/,
+              [0, 0, 128, 256] /*alienYellow_walk2,54*/
+            ],
+            animations: {
+              climb: {frames: [0, 1], speed: 0.1},
+              duck: 2,
+              front: 3,
+              hit: 4,
+              jump: 5,
+              stand: 6,
+              swim: {frames: [7, 8], speed: 0.1},
+              walk: {frames: [9, 10], speed: 0.1}
+            }
+          }));
+        }
+
+        return this.sheets.get(color);
+      };
+    };
+
+    /**
+     * Item SpriteSheet
+     */
+    itemSpriteSheet = new createjs.SpriteSheet({
+      images: [loader.getResult("spritesheet_complete")],
+      frames: [
+        [2730, 130, 128, 128] /*coinBronze,87*/,
+        [2730, 0, 128, 128] /*coinGold,88*/,
+        [2600, 1820, 128, 128] /*coinSilver,89*/,
+        [2600, 130, 128, 128] /*gemBlue,142*/,
+        [2600, 0, 128, 128] /*gemGreen,143*/,
+        [2470, 1820, 128, 128] /*gemRed,144*/,
+        [2470, 1690, 128, 128] /*gemYellow,145*/,
+        [2600, 1690, 128, 128] /*flagBlue1,124*/,
+        [2600, 1560, 128, 128] /*flagBlue2,125*/,
+        [2600, 1430, 128, 128] /*flagBlue_down,126*/,
+        [2600, 1300, 128, 128] /*flagGreen1,127*/,
+        [2600, 1170, 128, 128] /*flagGreen2,128*/,
+        [2600, 1040, 128, 128] /*flagGreen_down,129*/,
+        [2600, 910, 128, 128] /*flagRed1,130*/,
+        [2600, 780, 128, 128] /*flagRed2,131*/,
+        [2600, 650, 128, 128] /*flagRed_down,132*/,
+        [2600, 520, 128, 128] /*flagYellow1,133*/,
+        [2600, 390, 128, 128] /*flagYellow2,134*/,
+        [2600, 260, 128, 128] /*flagYellow_down,135*/
+      ],
+      animations: {
+        coinBronze: 0,
+        coinGold: 1,
+        coinSilver: 2,
+        gemBlue: 3,
+        gemGreen: 4,
+        gemRed: 5,
+        gemYellow: 6,
+        flagBlue: {
+          frames: [7, 8], speed: 0.02
+        },
+        flagBlue_down: 9,
+        flagGreen: {
+          frames: [10, 11], speed: 0.02
+        },
+        flagGreen_down: 12,
+        flagRed: {
+          frames: [13, 14], speed: 0.02
+        },
+        flagRed_down: 15,
+        flagYellow: {
+          frames: [16, 17], speed: 0.02
+        },
+        flagYellow_down: 18
+      }
+    });
+
+    /**
+     * Hud SpriteSheet
+     */
+    hudSpriteSheet = new createjs.SpriteSheet({
+      images: [loader.getResult("spritesheet_complete")],
+      frames: [
+        [2990, 910, 128, 128] /*hud0,164*/,
+        [2990, 650, 128, 128] /*hud1,165*/,
+        [2470, 910, 128, 128] /*hud2,166*/,
+        [2990, 520, 128, 128] /*hud3,167*/,
+        [2990, 390, 128, 128] /*hud4,168*/,
+        [2990, 260, 128, 128] /*hud5,169*/,
+        [2990, 130, 128, 128] /*hud6,170*/,
+        [2990, 0, 128, 128] /*hud7,171*/,
+        [2860, 1820, 128, 128] /*hud8,172*/,
+        [2860, 1690, 128, 128] /*hud9,173*/,
+        [2860, 1560, 128, 128] /*hudCoin,174*/,
+        [2860, 1430, 128, 128] /*hudHeart_empty,175*/,
+        [2860, 1300, 128, 128] /*hudHeart_full,176*/,
+        [2860, 1170, 128, 128] /*hudHeart_half,177*/,
+        [2860, 1040, 128, 128] /*hudJewel_blue,178*/,
+        [2860, 910, 128, 128] /*hudJewel_blue_empty,179*/,
+        [2860, 780, 128, 128] /*hudJewel_green,180*/,
+        [2860, 650, 128, 128] /*hudJewel_green_empty,181*/,
+        [2860, 520, 128, 128] /*hudJewel_red,182*/,
+        [2860, 390, 128, 128] /*hudJewel_red_empty,183*/,
+        [2860, 260, 128, 128] /*hudJewel_yellow,184*/,
+        [2860, 130, 128, 128] /*hudJewel_yellow_empty,185*/,
+        [2860, 0, 128, 128] /*hudKey_blue,186*/,
+        [2730, 1820, 128, 128] /*hudKey_blue_empty,187*/,
+        [2730, 1690, 128, 128] /*hudKey_green,188*/,
+        [2730, 1560, 128, 128] /*hudKey_green_empty,189*/,
+        [2730, 1430, 128, 128] /*hudKey_red,190*/,
+        [2730, 1300, 128, 128] /*hudKey_red_empty,191*/,
+        [2730, 1170, 128, 128] /*hudKey_yellow,192*/,
+        [2730, 1040, 128, 128] /*hudKey_yellow_empty,193*/,
+        [2730, 910, 128, 128] /*hudPlayer_beige,194*/,
+        [2730, 780, 128, 128] /*hudPlayer_blue,195*/,
+        [2730, 650, 128, 128] /*hudPlayer_green,196*/,
+        [2730, 520, 128, 128] /*hudPlayer_pink,197*/,
+        [2730, 390, 128, 128] /*hudPlayer_yellow,198*/,
+        [2730, 260, 128, 128] /*hudX,199*/
+      ],
+      animations: {
+        hud0: 0,
+        hud1: 1,
+        hud2: 2,
+        hud3: 3,
+        hud4: 4,
+        hud5: 5,
+        hud6: 6,
+        hud7: 7,
+        hud8: 8,
+        hud9: 9,
+        hudCoin: 10,
+        hudHeart_empty: 11,
+        hudHeart_full: 12,
+        hudHeart: 12,
+        hudHeart_half: 13,
+        hudJewel_blue: 14,
+        hudJewel_blue_empty: 15,
+        hudJewel_green: 16,
+        hudJewel_green_empty: 17,
+        hudJewel_red: 18,
+        hudJewel_red_empty: 19,
+        hudJewel_yellow: 20,
+        hudJewel_yellow_empty: 21,
+        hudKey_blue: 22,
+        hudKey_blue_empty: 23,
+        hudKey_green: 24,
+        hudKey_green_empty: 25,
+        hudKey_red: 26,
+        hudKey_red_empty: 27,
+        hudKey_yellow: 28,
+        hudKey_yellow_empty: 29,
+        hudPlayer_beige: 30,
+        hudPlayer_blue: 31,
+        hudPlayer_green: 32,
+        hudPlayer_pink: 33,
+        hudPlayer_yellow: 34,
+        hudX: 35
+      }
+    });
+
+    /**
+     * Hud Factory
+     */
+    hudFactory = new function () {
+      this.get = function (type) {
+        return new createjs.Sprite(hudSpriteSheet, type);
+      }
+    };
+
+
+    playBG();
+
+    bg = new Background(BG_STYLE);
+    ground = new Ground(GROUND_STYLE);
+    player1 = new Character(PLAYER_COLOR_1);
+    // player2 = new Character(PLAYER_COLOR_2);
+    // gameInfo = new GameInformation();
+
+    gameMsg = new createjs.Text("", "80px Arial", "#ff7700");
+
+    stage.addChild(bg, ground, gameMsg);
+    stage.addChild(player1);
+    // stage.addChild(player1, player2, gameInfo);
+
+    firstPlayer = player1;
+
+    repaint();
+    createjs.Ticker.timingMode = createjs.Ticker.RAF_SYNCHED;
+    createjs.Ticker.addEventListener('tick', tick);
+    createjs.Ticker.framerate = FRAME_RATE;
+
+    stage.on("stagemousedown", function () {
+      firstPlayer.goJump();
+    });
+
+    isInitialized = true;
+  }
+
+  function handleError() {
+    console.log("Error: " + e.message);
+  }
+
+  function repaint() {
+    bg.repaint();
+    ground.repaint();
+    player1.repaint();
+    // player2.repaint();
+    gameMsg.x = HUD_SCALED_W + 8;
+    gameMsg.y = (HUD_SCALED_H << 1) + 24;
+  }
+
+  function resizeCanvas() {
+    if (isResizing) {
+      return;
+    }
+    isResizing = true;
+
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    w = canvas.width;
+    h = canvas.height;
+
+    if (isInitialized) {
+      repaint();
+    }
+
+    isResizing = false;
+  }
+
+  function lazyResize() {
+    if (!(null === resizeTimer)) {
+      clearTimeout(resizeTimer);
+    }
+    resizeTimer = setTimeout(resizeCanvas, 100);
+  }
+
+  function initCreateJS() {
+    stage = new createjs.Stage("demo");
+
+    createjs.Sound.alternateExtensions = ["mp3"];
+
+    var manifest = [
+      {src: "<%= asset_path("alien/Backgrounds/blue_desert.png") %>", id: "blue_desert"},
+      {src: "<%= asset_path('alien/spritesheet_complete.png') %>", id: "spritesheet_complete"},
+      {src: "/sounds/pin_run.mp3", id: SOUND_BG}
+    ];
+
+    loader = new createjs.LoadQueue(true);
+    loader.installPlugin(createjs.Sound);
+    loader.addEventListener("error", handleError);
+    loader.addEventListener("complete", handleComplete);
+    loader.loadManifest(manifest, true);
+  }
+
+  function init() {
+    canvas = document.getElementById('demo');
+
+    window.addEventListener('resize', lazyResize, false);
+    resizeCanvas();
+    initCreateJS();
+  }
+
+  window.onload = init;
+</script>

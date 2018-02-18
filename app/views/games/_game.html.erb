@@ -1,0 +1,31 @@
+<li class="list-group-item">
+  <% if current_admin %>
+    <% if game.exposed? %>
+      <%= link_to "#{game.id}:
+  #{t 'exposed_at'} #{game.exposed_at},
+  #{t 'result'} #{t game.ret_color},
+  #{t 'sold'} #{game.sold_small}/#{game.sold_middle}/#{game.sold_big},
+  #{t 'paid'} #{game.paid},
+  #{t 'should_pay' } #{game.should_pay}",
+                  game %>
+    <% elsif game.can_expose? %>
+      <%= link_to "#{game.id}:  #{t 'frozen'},
+  #{t 'sold'} #{game.sold_small}/#{game.sold_middle}/#{game.sold_big}",
+                  game %>
+    <% else %>
+      <%= link_to "#{game.id}:  #{t 'should_expose_at'} #{game.should_expose_at},
+  #{t 'sold'} #{game.sold_small}/#{game.sold_middle}/#{game.sold_big}",
+                  game %>
+    <% end %>
+  <% else %>
+    <% if game.exposed? %>
+      <%= link_to "#{game.id}:
+  #{t 'exposed_at'} #{game.exposed_at}",
+                  game %>
+    <% elsif game.can_expose? %>
+      <%= link_to "#{game.id}: #{t 'frozen'}", game %>
+    <% else %>
+      <%= link_to "#{game.id}: #{t 'should_expose_at'} #{game.should_expose_at}", game %>
+    <% end %>
+  <% end %>
+</li>
