@@ -372,7 +372,6 @@ cn:
   paying_success: '支付成功'
   paying_failed: '支付失败'
   no_privilege: '没有权限'
-  send_captcha_to_continue: '发送验证码以继续操作'
   no_tickets: '没有票据'
   no_stations: '没有站点'
   no_users: '没有用户'
@@ -398,4 +397,5 @@ cn:
   equal: '平'
   unknown: '未知'
   hurry: '提前开赛'
+  pin_counter_in_sec: '秒后可以重发验证码'
 

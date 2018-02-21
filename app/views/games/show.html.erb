@@ -1,31 +1,27 @@
 <script>
-  var admin_pin,
-      game_btn,
-      is_pin_sent = false;
+  var pin_keeper,
+      pin;
 
-  function updateTicketBtn() {
-    <% if current_admin %>
-    if (is_pin_sent) {
-      game_btn.innerText = "<%= "#{t '.expose_with_result'} #{t Game.ret_str(@game.best_result)}" %>";
-      game_btn.type = "commit";
-      game_btn.onclick = null;
-    } else {
-      game_btn.innerText = "<%= t 'send_captcha_to_continue' %>";
-      game_btn.type = "button";
-      game_btn.onclick = function () {
-        ajaxDo("get", " <%= "/admins/#{current_admin.id}/refresh_pin" %> ", true);
-        is_pin_sent = true;
-      };
-    }
-    <% end %>
+  function onFormInput(){
+    pin_keeper.updatePinBtn();
   }
 
   function initTicketForm() {
-    admin_pin = document.getElementById("admin_pin");
-    game_btn = document.getElementById("game_btn");
+    pin = document.getElementById("admin_pin");
 
-    updateTicketBtn();
-    admin_pin.oninput = updateTicketBtn;
+    pin_keeper = new PinKeeper(
+        pin,
+        document.getElementById("game_btn"),
+        "<%= "/admins/#{current_admin.id}/refresh_pin" %>",
+        function(){
+          return false;
+        },
+        "<%= "#{t '.expose_with_result'} #{t Game.ret_str(@game.best_result)}" %>",
+        "<%= t 'send_captcha' %>",
+        "<%= t 'pin_counter_in_sec' %>"
+    );
+
+    pin.oninput = onFormInput;
   }
 
   document.addEventListener("turbolinks:load", initTicketForm);

@@ -1,29 +1,27 @@
 <script>
-  var user_pin,
-      ticket_btn,
-      is_pin_sent = false;
+  var pin_keeper,
+      pin;
 
-  function updateTicketBtn() {
-    if (is_pin_sent) {
-      ticket_btn.innerText = "<%= t 'pay' %>";
-      ticket_btn.type = "commit";
-      ticket_btn.onclick = null;
-    } else {
-      ticket_btn.innerText = "<%= t 'send_captcha' %>";
-      ticket_btn.type = "button";
-      ticket_btn.onclick = function () {
-        ajaxDo("get", " <%= "/users/#{@ticket.user_mobile}/refresh_pin" %> ", true);
-        is_pin_sent = true;
-      };
-    }
+  function onFormInput(){
+    pin_keeper.updatePinBtn();
   }
 
   function initTicketForm() {
-    user_pin = document.getElementById("user_pin");
-    ticket_btn = document.getElementById("ticket_btn");
+    pin = document.getElementById("user_pin");
 
-    updateTicketBtn();
-    user_pin.oninput = updateTicketBtn;
+    pin_keeper = new PinKeeper(
+        pin,
+        document.getElementById("pin_btn"),
+        " <%= "/users/#{@ticket.user_mobile}/refresh_pin" %> ",
+        function(){
+          return false;
+        },
+        "<%= t 'pay' %>",
+        "<%= t 'send_captcha' %>",
+        "<%= t 'pin_counter_in_sec' %>"
+    );
+
+    pin.oninput = onFormInput;
   }
 
   document.addEventListener("turbolinks:load", initTicketForm);
@@ -49,7 +47,7 @@
             <div class="input-group input-group-lg">
               <%= number_field_tag 'user_pin', nil, class: 'form-control', placeholder: '验证码' %>
               <div class="input-group-btn">
-                <button id="ticket_btn" class="btn btn-primary"></button>
+                <button id="pin_btn" class="btn btn-primary"></button>
               </div>
             </div><!-- /input-group -->
           <% end %>

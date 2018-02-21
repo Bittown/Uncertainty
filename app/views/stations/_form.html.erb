@@ -1,58 +1,35 @@
-<% pin_name = current_admin ? 'admin_pin' : 'station_pin' %>
+<% owner_name = current_admin ? 'admin_pin' : 'station_pin' %>
+<% owner_pin_path = current_admin ? refresh_pin_admin_path(current_admin) :
+                  refresh_pin_station_path(current_station) %>
 
 <script>
-  var name,
-      mobile,
-      pin,
-      pin_btn,
-      password,
-      passwordconf,
-      is_pin_sent = false;
 
-  function updatePinBtn() {
-    pin_btn.innerText = is_pin_sent ? "<%= t 'commit' %>" : "<%= t 'send_captcha' %>";
-    pin_btn.disabled = name.value === "" || mobile.value === "";
-    if (pin_btn.disabled) {
-      return;
-    }
+  var pin_keeper,
+      pin;
 
-    if (is_pin_sent) {
-      if (pin.value === "") {
-        pin_btn.disabled = true;
-        return;
-      }
-      pin_btn.type = "commit";
-      pin_btn.onclick = null;
-    } else {
-      pin_btn.type = "button";
-      pin_btn.onclick = function () {
-        ajaxDo("get", "<%= current_admin ?
-         refresh_pin_admin_path(current_admin) :
-          refresh_pin_station_path(current_station) %>", true);
-        is_pin_sent = true;
-      };
-    }
-  }
-
-  function updatePinAndPinBtn(){
-    pin.value = "";
-    updatePinBtn();
+  function onFormInput(){
+    pin_keeper.updatePinBtn();
   }
 
   function initStationForm() {
-    name = document.getElementById("station_name");
-    mobile = document.getElementById("station_mobile");
-    password = document.getElementById("station_password");
-    passwordconf = document.getElementById("station_password_confirmation");
-    pin = document.getElementById("<%= pin_name %>");
-    pin_btn = document.getElementById("pin_btn");
+    pin = document.getElementById("<%= owner_name %>");
 
-    name.oninput = updatePinAndPinBtn;
-    mobile.oninput = updatePinAndPinBtn;
-    password.oninput = updatePinAndPinBtn;
-    passwordconf.oninput = updatePinAndPinBtn;
-    pin.oninput = updatePinBtn;
-    updatePinBtn();
+    pin_keeper = new PinKeeper(
+        pin,
+        document.getElementById("pin_btn"),
+        "<%= owner_pin_path %>",
+        function(){
+          return document.getElementById("station_name").value === "" ||
+              document.getElementById("station_mobile").value === "";
+        },
+        "<%= t 'commit' %>",
+        "<%= t 'send_captcha' %>",
+        "<%= t 'pin_counter_in_sec' %>"
+    );
+
+    document.getElementById("station_name").oninput = onFormInput;
+    document.getElementById("station_mobile").oninput = onFormInput;
+    pin.oninput = onFormInput;
   }
 
   document.addEventListener("turbolinks:load", initStationForm);
@@ -67,7 +44,7 @@
 
   <div class="form-group">
     <div class="input-group input-group-lg">
-      <%= number_field_tag pin_name, nil, placeholder: t('captcha'), class: 'form-control' %>
+      <%= number_field_tag owner_name, nil, placeholder: t('captcha'), class: 'form-control' %>
       <div class="input-group-btn">
         <button id="pin_btn" class="btn btn-primary"></button>
       </div>

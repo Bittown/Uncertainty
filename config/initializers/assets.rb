@@ -13,4 +13,4 @@ Rails.application.config.assets.paths << Rails.root.join('node_modules')
 # folder are already added.
 # Rails.application.config.assets.precompile += %w( admin.js admin.css )
 Rails.application.config.assets.precompile +=
-    %w[easeljs.min.js preloadjs.min.js Queue.js soundjs.min.js]
+    %w[easeljs.min.js preloadjs.min.js Queue.js soundjs.min.js pin.js]

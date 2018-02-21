@@ -1,55 +1,33 @@
 <script>
-  var name,
-      mobile,
+  var pin_keeper,
       pin,
-      pin_btn,
-      password,
-      passwordconf,
-      is_pin_sent = false;
+      name,
+      mobile;
 
-  function updatePinBtn() {
-    pin_btn.innerText = is_pin_sent ? "<%= t 'commit' %>" : "<%= t 'captcha' %>";
-    pin_btn.disabled = name.value === "" || mobile.value === "";
-    if (pin_btn.disabled) {
-      return;
-    }
-
-    if (is_pin_sent) {
-      if (pin.value === "") {
-        pin_btn.disabled = true;
-        return;
-      }
-      pin_btn.type = "commit";
-      pin_btn.onclick = null;
-    } else {
-      pin_btn.type = "button";
-      pin_btn.onclick = function () {
-        ajaxDo("get", "<%= refresh_pin_admin_path(current_admin) %>", true);
-        is_pin_sent = true;
-      };
-    }
-  }
-
-  function updatePinAndPinBtn() {
-    pin.value = "";
-    console.log("aaa")
-    updatePinBtn();
+  function onFormInput(){
+    pin_keeper.updatePinBtn();
   }
 
   function initStationForm() {
+    pin = document.getElementById("pin");
     name = document.getElementById("admin_name");
     mobile = document.getElementById("admin_mobile");
-    password = document.getElementById("admin_password");
-    passwordconf = document.getElementById("admin_password_confirmation");
-    pin = document.getElementById("pin");
-    pin_btn = document.getElementById("pin_btn");
 
-    name.oninput = updatePinAndPinBtn;
-    mobile.oninput = updatePinAndPinBtn;
-    password.oninput = updatePinAndPinBtn;
-    passwordconf.oninput = updatePinAndPinBtn;
-    pin.oninput = updatePinBtn;
-    updatePinBtn();
+    pin_keeper = new PinKeeper(
+        pin,
+        document.getElementById("pin_btn"),
+        "<%= refresh_pin_admin_path(current_admin) %>",
+        function(){
+          return name.value === ""|| mobile.value === "";
+        },
+        "<%= t 'commit' %>",
+        "<%= t 'send_captcha' %>",
+        "<%= t 'pin_counter_in_sec' %>"
+    );
+
+    name.oninput = onFormInput;
+    mobile.oninput = onFormInput;
+    pin.oninput = onFormInput;
   }
 
   document.addEventListener("turbolinks:load", initStationForm);

@@ -2,46 +2,19 @@
 
 <% if game %>
   <script>
-    var amount,
+    var pin_keeper,
+        amount,
         forecast,
         game_id,
         user_mobile,
-        user_pin,
+        pin,
         pin_btn,
         progress_div,
         progress_pan,
-        progress_timer,
-        is_pin_sent = false;
+        progress_timer;
 
     var game_expose_at = Date.parse("<%= game.should_expose_at.to_formatted_s(:iso8601) %>");
     var game_sustain = game_expose_at - Date.parse("<%= game.created_at.to_formatted_s(:iso8601) %>");
-
-    function updateTicketBtn() {
-      pin_btn.innerText = is_pin_sent ?
-          "<%= t 'commit' %>" : "<%= t 'send_captcha' %>";
-      pin_btn.disabled = amount.value === "" ||
-          forecast.value === "" ||
-          game_id.value === "" ||
-          user_mobile.value === "";
-      if (pin_btn.disabled) {
-        return;
-      }
-
-      if (is_pin_sent) {
-        if (user_pin.value === "") {
-          pin_btn.disabled = true;
-          return;
-        }
-        pin_btn.type = "commit";
-        pin_btn.onclick = null;
-      } else {
-        pin_btn.type = "button";
-        pin_btn.onclick = function () {
-          ajaxDo("get", "/users/" + user_mobile.value + "/refresh_pin", true);
-          is_pin_sent = true;
-        };
-      }
-    }
 
     function updateGameProgress() {
       var remain = game_expose_at - Date.now();
@@ -52,7 +25,7 @@
         amount.disabled = true;
         forecast.disabled = true;
         user_mobile.disabled = true;
-        user_pin.disabled = true;
+        pin.disabled = true;
         pin_btn.disabled = true;
       } else {
         var ratio = Math.round(remain * 100 / game_sustain);
@@ -66,24 +39,40 @@
       progress_timer = setTimeout(continueUpdateGameProgress, 1 << 20)
     }
 
+    function onFormInput(){
+      pin_keeper.updatePinBtn();
+    }
+
     function initTicketForm() {
       amount = document.getElementById("ticket_amount");
       forecast = document.getElementById("ticket_forecast");
       game_id = document.getElementById("ticket_game_id");
       user_mobile = document.getElementById("ticket_user_mobile");
-      user_pin = document.getElementById("user_pin");
+      pin = document.getElementById("user_pin");
       pin_btn = document.getElementById("pin_btn");
       progress_div = document.getElementById("game_progress_div");
       progress_pan = document.getElementById("game_progress_pan");
-      user_pin.value = "";
 
-      user_mobile.oninput = function () {
-        user_pin.value = "";
-        updateTicketBtn();
-      };
-      user_pin.oninput = updateTicketBtn;
+      pin_keeper = new PinKeeper(
+          pin,
+          pin_btn,
+          "/users/" + user_mobile.value + "/refresh_pin",
+          function(){
+            return amount.value === "" ||
+                forecast.value === "" ||
+                game_id.value === "" ||
+                user_mobile.value === "";
+          },
+          "<%= t 'buy_ticket' %>",
+          "<%= t 'send_captcha' %>",
+          "<%= t 'pin_counter_in_sec' %>"
+      );
 
-      updateTicketBtn();
+      amount.oninput = onFormInput;
+      forecast.oninput = onFormInput;
+      game_id.oninput = onFormInput;
+      user_mobile.oninput = onFormInput;
+      pin.oninput = onFormInput;
       continueUpdateGameProgress();
       amount.focus();
     }
