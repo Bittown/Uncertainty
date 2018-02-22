@@ -21,12 +21,14 @@ function PinKeeper(pin_txt,
 
     --this.pin_counter;
 
-    if (this.pin_counter <= 0) {
-      this.pin_btn.disabled = false;
-      this.pin_btn.innerText = this.PIN_TITLE;
-    } else {
-      this.pin_btn.disabled = true;
-      this.pin_btn.innerText = "" + this.pin_counter + this.PIN_COUNTER_TITLE;
+    if(this.pin_btn.innerText !== this.COMMIT_TITLE) {
+      if (this.pin_counter <= 0) {
+        this.pin_btn.disabled = false;
+        this.pin_btn.innerText = this.PIN_TITLE;
+      } else {
+        this.pin_btn.disabled = true;
+        this.pin_btn.innerText = "" + this.pin_counter + this.PIN_COUNTER_TITLE;
+      }
     }
 
     var keeper = this;
@@ -34,15 +36,12 @@ function PinKeeper(pin_txt,
   };
 
   this.transPinBtn2Commit = function () {
-    this.pin_counter = 0;
     this.pin_btn.innerText = this.COMMIT_TITLE;
     this.pin_btn.type = "commit";
     this.pin_btn.onclick = null;
   };
 
   this.initPinBtn = function () {
-    this.pin_counter = 0;
-
     this.pin_btn.innertext = this.PIN_TITLE;
     if (this.pin_btn.disabled) {
       return;
@@ -60,7 +59,7 @@ function PinKeeper(pin_txt,
   this.updatePinBtn = function() {
     const has_pin = this.pin_txt.value !== "";
     this.pin_btn.innerText = has_pin ? this.COMMIT_TITLE : this.PIN_TITLE;
-    this.pin_btn.disabled = this.disable_on();
+    this.pin_btn.disabled = this.disable_on() || (!has_pin && this.pin_counter > 0);
     if (this.pin_btn.disabled) {
       return;
     }
