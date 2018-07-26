@@ -1,6 +1,6 @@
 # Guessing game
 
-This is a game about guessing.
+A multiple users/stations online gaming system.
 
 ## Author
 
