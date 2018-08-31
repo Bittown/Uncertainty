@@ -1,4 +1,4 @@
-# Guessing game
+# Flutter
 
 Flutter is multiple users/stations online gaming platform built on rails.
 
