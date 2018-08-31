@@ -1,6 +1,6 @@
 # Guessing game
 
-A multiple users/stations online gaming system.
+Flutter is multiple users/stations online gaming platform built on rails.
 
 ## Live demo
 
