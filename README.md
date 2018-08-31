@@ -1,6 +1,6 @@
-# Flutter
+# Uncertainty
 
-Flutter is multiple users/stations online gaming platform built on rails.
+Uncertainty is multiple users/stations online gaming platform built on rails.
 
 ## Live demo
 
