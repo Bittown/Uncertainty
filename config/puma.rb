@@ -18,7 +18,8 @@ environment ENV.fetch("RAILS_ENV") { "development" }
 # For Nginx
 app_dir = File.expand_path("../..", __FILE__)
 shared_dir = "#{app_dir}/shared"
-bind "unix://#{shared_dir}/sockets/puma.sock"
+
+bind "unix://#{shared_dir}/sockets/puma.sock" if Rails.env =~ /production/
 
 # Specifies the number of `workers` to boot in clustered mode.
 # Workers are forked webserver processes. If using threads and workers together
