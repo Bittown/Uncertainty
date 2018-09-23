@@ -380,7 +380,6 @@ cn:
   mobile: '手机'
   name: '名字'
   password: '密码'
-  password: '密码'
   password_confirmation: '确认密码'
   frozen: '已冻结'
   no_more_than_one_unexposed_at_a_time: '同一时刻只允许一个未结束的比赛'
