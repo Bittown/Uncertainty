@@ -56,7 +56,7 @@ class Admin < ApplicationRecord
   end
 
   def level_title
-    User.to_level_title level
+    Admin.to_level_title level
   end
 
   def notify_game_freeze(minutes, ret)
